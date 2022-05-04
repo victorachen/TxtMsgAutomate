@@ -11,12 +11,15 @@ class vacancy_csv(object):
         self.vac_list = []
         self.properties = ['Holiday', 'Mt Vista', 'Westwind', 'Wilson Gardens', 'Crestview',\
                             'Hitching Post', 'SFH', 'Patrician']
-        self.pricing = {} #todfo
         self.dic = {'Holiday':{},'Mt Vista': {},'Westwind':{},'Wilson Gardens':{},\
                     'Crestview':{},'Hitching Post':{},'SFH':{},'Patrician':{}}
-        self.ss = ezsheets.Spreadsheet('1Jn3vSrRxB3j1oZab3QZd1gnFczyndmLEbeUqn_JaEkU')
+        self.statuslist = ['Trash Need To Be Cleaned Out','Undergoing Turnover',\
+                           'Need Appliances','Need Cleaning','Rent Ready','Rented',\
+                           'Under Construction', 'No Status']
+
+        # self.ss = ezsheets.Spreadsheet('1Jn3vSrRxB3j1oZab3QZd1gnFczyndmLEbeUqn_JaEkU')
         #action items: calling helper functions
-        self.scrapegmail()
+        # self.scrapegmail()
         self.read_csv()
         self.create_dic()
     def scrapegmail(self):
@@ -59,13 +62,21 @@ class vacancy_csv(object):
                 return i
     def create_dic(self):
         for i in self.data:
-            if len(i)>1:
+            if len(i)>2:
                 unit = i[0]
                 prop = i[-1]
                 if self.is_unit(unit) and self.is_prop(prop):
                     # print(unit,prop)
                     obj = Unit(self.which_prop(prop), unit)
                     self.dic[self.which_prop(prop)].update({unit:obj})
+                    #writing this extra shit (just) for bed/bath
+                    if len(i[2])>2:
+                        bed = i[2][0]
+                        bath = i[2][2]
+                    else:
+                        bed = '?'
+                        bath = '?'
+                    obj.setbedbath(bed,bath)
     def in_dic(self, complex, unit):
     #given complex & unit, return True if they can be found in dictionary
         try:
@@ -86,9 +97,45 @@ class vacancy_csv(object):
                 self.dic[complex][unit].status = status
                 self.dic[complex][unit].notes = notes
                 self.dic[complex][unit].person = person
-        return None
+        return self.dic
+    def sorted_dic(self):
+    #sort dictionary by status {'status1':{obj1,obj2},'status2':{obj1,obj2}}
+        self.sorted_dic = {}
+        for i in self.statuslist:
+            self.sorted_dic.update({i:{}})
+        for prop in self.dic:
+            for unit in self.dic[prop]:
+                a = self.dic[prop][unit]
+                try:
+                    self.sorted_dic.update({self.sorted_dic[a.status]:a})
+                except:
+                    self.sorted_dic.update({self.sorted_dic['No Status']:a]})
+        return self.sorted_dic
     def txtmsg(self):
         #create print statement for mass text distribution
+        # print('Most recent update:')
+        print('List of vacancies:')
+        for prop in self.dic:
+            for unit in self.dic[prop]:
+                a = self.dic[prop][unit]
+                #helper function, so you're not writing it over & over
+                def printunit():
+                    print(a.complex + ' ' + str(a.unit) + ' (' + str(a.bed) + 'Bd/' \
+                          + str(a.bath) + 'Bth-$' + str(a.price) + ')')
+                    print('Next Steps:' + str(a.notes))
+
+                if a.status == 'Trash Needs To Be Cleaned Out':
+                    print('The following units need trash to be cleaned out (trailer):')
+                    printunit()
+                if a.status == 'Undergoing Turnover':
+                    print('The following units')
+
+
+
+                self.statuslist = ['Trash Needs To Be Cleaned Out', 'Undergoing Turnover', \
+                                   'Need Appliances', 'Need Cleaning', 'Rent Ready', 'Rented', \
+                                   'Under Construction']
+
         return None
 
 class Unit(object):
@@ -96,25 +143,43 @@ class Unit(object):
         self.complex = complex
         self.unit = unit
         self.bed = 0
-        self.bath = 0
+        # self.bath = 0
         self.status = ''
         self.notes = ''
         self.person = ''
-        self.price = 1000
-
+        # self.bedbath = str(self.bed)+'bd'+str(self.bath)+'ba'
+        self.pricelist = {'1bd1ba': 1350, '2bd1ba': 1450, '2bd2ba': 1500, '3bd1ba': 1550,\
+                          '3bd2ba': 1650, '4bd2ba': 1800}
+    def setbedbath(self,bed,bath):
+        self.bed = bed
+        self.bath = bath
+        self.bedbath = str(self.bed)+'bd'+str(self.bath)+'ba'
+        try:
+            self.price = self.pricelist[self.bedbath]
+        except:
+            self.price = '?'
+        return self.bedbath
 
     #s2: print statement
 
 
 o1 = vacancy_csv()
-o1.gsheets()
-print(o1.dic)
-print(o1.dic['Holiday']['13'].status)
-print(o1.dic['Holiday']['13'].notes)
-print(o1.dic['Holiday']['13'].person)
-print(o1.dic['Hitching Post']['25'].status)
-print(o1.dic['Hitching Post']['25'].notes)
-print(o1.dic['Hitching Post']['25'].person)
+print(o1.dic['Wilson Gardens']['105'].bed)
+print(o1.dic['Wilson Gardens']['105'].bath)
+print(o1.sorted_dic())
+# o1.txtmsg()
+# o1.dic['Holiday']['13'].status = 'something'
+# o1.txtmsg()
+# u= Unit('Holiday','13')
+# print(u.setbedbath(3,2))
+# print(u.price)
+# print(u.setbedbath('?','?'))
+# print(u.price)
+# print(u.price)
+# u.bed = 3
+# u.bath = 2
+# print(u.bed)
+# print(u.price)
 
 
 
