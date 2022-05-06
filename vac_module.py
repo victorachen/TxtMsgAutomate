@@ -4,7 +4,7 @@ from datetime import date
 os.chdir(r'C:\Python Files\Vacant Units')
 
 class vacancy_csv(object):
-#returns Data set from AppFolio Vacancy (using def read_csv)
+#returns Data set from AppFolio Vacancy (using def read_csv)    
     def __init__(self):
         self.data = []
         self.d = {}
@@ -17,11 +17,14 @@ class vacancy_csv(object):
                            'Need Appliances','Need Cleaning','Rent Ready','Rented',\
                            'Under Construction', 'No Status']
 
-        # self.ss = ezsheets.Spreadsheet('1Jn3vSrRxB3j1oZab3QZd1gnFczyndmLEbeUqn_JaEkU')
+        self.ss = ezsheets.Spreadsheet('1Jn3vSrRxB3j1oZab3QZd1gnFczyndmLEbeUqn_JaEkU')
         #action items: calling helper functions
-        # self.scrapegmail()
+        self.scrapegmail()
         self.read_csv()
         self.create_dic()
+        #update csv dic from gsheets
+        self.gsheets()
+        self.sorted_dic()
     def scrapegmail(self):
         ezgmail.init()
         thread = ezgmail.search('Batcave located in vacancy')
@@ -100,41 +103,47 @@ class vacancy_csv(object):
         return self.dic
     def sorted_dic(self):
     #sort dictionary by status {'status1':{obj1,obj2},'status2':{obj1,obj2}}
+        #first set default parameters for your new sorted dictionary
         self.sorted_dic = {}
         for i in self.statuslist:
             self.sorted_dic.update({i:{}})
+        #then fill the sorted dictionary by looping through your og dictionary
         for prop in self.dic:
             for unit in self.dic[prop]:
                 a = self.dic[prop][unit]
+                # print(a.complex + ' '+a.unit + ' '+a.status)
                 try:
-                    self.sorted_dic.update({self.sorted_dic[a.status]:a})
+                    self.sorted_dic[a.status].update({a.complex + ' '+a.unit:a})
                 except:
-                    self.sorted_dic.update({self.sorted_dic['No Status']:a]})
+                    print("the object's (that you're looping thru) status does not exist")
         return self.sorted_dic
     def txtmsg(self):
         #create print statement for mass text distribution
         # print('Most recent update:')
         print('List of vacancies:')
-        for prop in self.dic:
-            for unit in self.dic[prop]:
-                a = self.dic[prop][unit]
-                #helper function, so you're not writing it over & over
-                def printunit():
-                    print(a.complex + ' ' + str(a.unit) + ' (' + str(a.bed) + 'Bd/' \
-                          + str(a.bath) + 'Bth-$' + str(a.price) + ')')
-                    print('Next Steps:' + str(a.notes))
+        for status in self.sorted_dic:
+            s = self.sorted_dic[status]
+            if len(s) > 0:
+                print("((("+status+"))):")
+                for unit in s:
+                    if len(s[unit].notes)>0:
+                        print(s[unit].complex+" "+s[unit].unit+"-- "+s[unit].notes)
+                    else:
+                        print(s[unit].complex + " " +s[unit].unit)
 
-                if a.status == 'Trash Needs To Be Cleaned Out':
-                    print('The following units need trash to be cleaned out (trailer):')
-                    printunit()
-                if a.status == 'Undergoing Turnover':
-                    print('The following units')
-
-
-
-                self.statuslist = ['Trash Needs To Be Cleaned Out', 'Undergoing Turnover', \
-                                   'Need Appliances', 'Need Cleaning', 'Rent Ready', 'Rented', \
-                                   'Under Construction']
+            # for unit in self.dic[prop]:
+            #     a = self.dic[prop][unit]
+            #     #helper function, so you're not writing it over & over
+            #     def printunit():
+            #         print(a.complex + ' ' + str(a.unit) + ' (' + str(a.bed) + 'Bd/' \
+            #               + str(a.bath) + 'Bth-$' + str(a.price) + ')')
+            #         print('Next Steps:' + str(a.notes))
+            #
+            #     if a.status == 'Trash Needs To Be Cleaned Out':
+            #         print('The following units need trash to be cleaned out (trailer):')
+            #         printunit()
+            #     if a.status == 'Undergoing Turnover':
+            #         print('The following units')
 
         return None
 
@@ -144,7 +153,7 @@ class Unit(object):
         self.unit = unit
         self.bed = 0
         # self.bath = 0
-        self.status = ''
+        self.status = 'No Status'
         self.notes = ''
         self.person = ''
         # self.bedbath = str(self.bed)+'bd'+str(self.bath)+'ba'
@@ -164,9 +173,12 @@ class Unit(object):
 
 
 o1 = vacancy_csv()
-print(o1.dic['Wilson Gardens']['105'].bed)
-print(o1.dic['Wilson Gardens']['105'].bath)
-print(o1.sorted_dic())
+o1.txtmsg()
+# for i in o1.dic:
+#     print(o1.dic[i])
+#     for x in o1.dic[i]:
+#         print(x)
+# print(o1.sorted_dic())
 # o1.txtmsg()
 # o1.dic['Holiday']['13'].status = 'something'
 # o1.txtmsg()
