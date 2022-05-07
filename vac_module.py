@@ -1,11 +1,18 @@
 
+#todo:(1) in txtmsg,have it return a msg "string (self.printedmsg)
+# (over the course of multiple lines)
+#(rather than printing everything)
+# (2) create method that checks gsheets and adds to beg of self.printedmsg who has updated what
 import ezgmail, os, csv, ezsheets
 from datetime import date
-os.chdir(r'C:\Python Files\Vacant Units')
+from twilio.rest import Client
+from pathlib import Path
+os.chdir(r'C:\Users\Lenovo\PycharmProjects\Vacancy')
 
 class vacancy_csv(object):
-#returns Data set from AppFolio Vacancy (using def read_csv)    
+#returns Data set from AppFolio Vacancy (using def read_csv)
     def __init__(self):
+        self.printedmsg = ""
         self.data = []
         self.d = {}
         self.vac_list = []
@@ -28,7 +35,7 @@ class vacancy_csv(object):
     def scrapegmail(self):
         ezgmail.init()
         thread = ezgmail.search('Batcave located in vacancy')
-        thread[0].messages[0].downloadAllAttachments(downloadFolder=r'C:\Python Files\Vacant Units')
+        thread[0].messages[0].downloadAllAttachments(downloadFolder=r'C:\Users\Lenovo\PycharmProjects\Vacancy')
         return None
     def read_csv(self):
         s1 = "unit_vacancy_detail-"
@@ -131,20 +138,6 @@ class vacancy_csv(object):
                     else:
                         print(s[unit].complex + " " +s[unit].unit)
 
-            # for unit in self.dic[prop]:
-            #     a = self.dic[prop][unit]
-            #     #helper function, so you're not writing it over & over
-            #     def printunit():
-            #         print(a.complex + ' ' + str(a.unit) + ' (' + str(a.bed) + 'Bd/' \
-            #               + str(a.bath) + 'Bth-$' + str(a.price) + ')')
-            #         print('Next Steps:' + str(a.notes))
-            #
-            #     if a.status == 'Trash Needs To Be Cleaned Out':
-            #         print('The following units need trash to be cleaned out (trailer):')
-            #         printunit()
-            #     if a.status == 'Undergoing Turnover':
-            #         print('The following units')
-
         return None
 
 class Unit(object):
@@ -171,9 +164,38 @@ class Unit(object):
 
     #s2: print statement
 
+def call_twilio():
+    #call twilio api to print
+    account_sid = readtxtfile()['sid']
+    auth_token = readtxtfile()['token']
+    client = Client(account_sid, auth_token)
 
-o1 = vacancy_csv()
-o1.txtmsg()
+    message = client.messages \
+        .create(
+        body="Tim Duncan is the GOATPF",
+        from_=readtxtfile()['from'],
+        to=readtxtfile()['to']
+    )
+    print(message.sid)
+def readtxtfile():
+    #return dictionary of {'sid':x,'token':y,'from':z,'to':a}
+    #hiding my keys from you github mf's
+    p = Path('twiliocreds.txt')
+    text = p.read_text()
+    #hard coding the shit out of this bby
+    start = text.index('sid')
+    sid = text[start+4: start+4+35]
+    start = text.index('token')
+    token = text[start+6: start+6+33]
+    start = text.index('phone_from')
+    phone_from = text[start+11: start+11+13]
+    start = text.index('phone_to')
+    phone_to = text[start+9: start+9+13]
+    d = {'sid':sid,'token':token,'from':phone_from,'to':phone_to}
+    return d
+
+# o1 = vacancy_csv()
+# o1.txtmsg()
 # for i in o1.dic:
 #     print(o1.dic[i])
 #     for x in o1.dic[i]:
