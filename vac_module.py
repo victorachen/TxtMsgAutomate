@@ -32,6 +32,9 @@ class vacancy_csv(object):
         #update csv dic from gsheets
         self.gsheets()
         self.sorted_dic()
+        #compare (new) gsheet input with old local stuff
+        self.compare()
+        print(self.printedmsg)
     def scrapegmail(self):
         ezgmail.init()
         thread = ezgmail.search('Batcave located in vacancy')
@@ -108,6 +111,63 @@ class vacancy_csv(object):
                 self.dic[complex][unit].notes = notes
                 self.dic[complex][unit].person = person
         return self.dic
+    def compare(self):
+    #compare old csv with gsheet
+    #if any incongruity, call update_announcement()
+        old_file = open('old.csv')
+        reader1 = csv.reader(old_file)
+        data1 = list(reader1)
+
+        #next,download gsheet into local folder
+        self.ss.downloadAsCSV()
+        new_file = open('new.csv')
+        reader2 = csv.reader(new_file)
+        data2 = list(reader2)
+        self.newdata = data2
+
+        oldstamps = []
+        newstamps = []
+        for i in data1:
+            oldstamps.append(i[0])
+        for i in data2:
+            newstamps.append(i[0])
+
+        #compare the last 2 timestamps
+        if oldstamps == newstamps:
+            print('nothing to update here!')
+            return False
+
+        if not oldstamps == newstamps:
+            self.updated_lines = []
+            # find the index of last matching timestamp,
+            for i in oldstamps:
+                try:
+                    if len(i[0])>0:
+                        ind = oldstamps.index(i)
+                except:
+                    x = 'do nothing'
+            #add everything after that point to self.updated_lines
+            self.updated_lines.append(data2[ind+1:])
+            print('updated lines below:')
+            print(self.updated_lines)
+            self.update_old()
+            self.update_announcement()
+            print('updated!')
+            return True
+    def update_old(self):
+    #after comparing, update old.csv with newly submitted lines from
+    #store new_csv in list, write that entire list into old_csv
+        outputFile = open('old.csv', 'w', newline='')
+        outputWriter = csv.writer(outputFile)
+        for i in self.newdata:
+            outputWriter.writerow(i)
+        return None
+
+    def update_announcement(self):
+    #if called upon, change the first few lines of the txt msg (final output)
+        self.printedmsg = 'we gonna change the first line of this'
+        return None
+
     def sorted_dic(self):
     #sort dictionary by status {'status1':{obj1,obj2},'status2':{obj1,obj2}}
         #first set default parameters for your new sorted dictionary
@@ -194,7 +254,7 @@ def readtxtfile():
     d = {'sid':sid,'token':token,'from':phone_from,'to':phone_to}
     return d
 
-# o1 = vacancy_csv()
+o1 = vacancy_csv()
 # o1.txtmsg()
 # for i in o1.dic:
 #     print(o1.dic[i])
