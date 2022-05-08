@@ -1,6 +1,5 @@
 
-#todo:(1) in txtmsg,have it return a msg "string (self.printedmsg)
-# (over the course of multiple lines)
+#todo:(1) work on needupdating function (
 #(rather than printing everything)
 # (2) create method that checks gsheets and adds to beg of self.printedmsg who has updated what
 import ezgmail, os, csv, ezsheets
@@ -34,7 +33,7 @@ class vacancy_csv(object):
         self.sorted_dic()
         #compare (new) gsheet input with old local stuff
         self.compare()
-        print(self.printedmsg)
+        self.txtmsg()
     def scrapegmail(self):
         ezgmail.init()
         thread = ezgmail.search('Batcave located in vacancy')
@@ -111,6 +110,10 @@ class vacancy_csv(object):
                 self.dic[complex][unit].notes = notes
                 self.dic[complex][unit].person = person
         return self.dic
+    def needupdating(self):
+    #return True if gsheets differ from local old.csv
+    #subsequently shooting out a text msg
+        return True
     def compare(self):
     #compare old csv with gsheet
     #if any incongruity, call update_announcement()
@@ -147,12 +150,12 @@ class vacancy_csv(object):
                 except:
                     x = 'do nothing'
             #add everything after that point to self.updated_lines
-            self.updated_lines.append(data2[ind+1:])
-            print('updated lines below:')
-            print(self.updated_lines)
+            self.updated_lines.extend(data2[ind+1:])
+            # print('updated lines below:')
+            # print(self.updated_lines)
             self.update_old()
             self.update_announcement()
-            print('updated!')
+            # print('updated!')
             return True
     def update_old(self):
     #after comparing, update old.csv with newly submitted lines from
@@ -165,7 +168,13 @@ class vacancy_csv(object):
 
     def update_announcement(self):
     #if called upon, change the first few lines of the txt msg (final output)
-        self.printedmsg = 'we gonna change the first line of this'
+        s = """Most Recent Updates: \n"""
+        for i in self.updated_lines:
+            person = i[5]
+            prop = i[1]
+            space = i[2]
+            s+= prop + ' '+space + ' updated by '+person+'\n'
+        self.printedmsg = s + '\n'+ self.printedmsg
         return None
 
     def sorted_dic(self):
@@ -186,17 +195,21 @@ class vacancy_csv(object):
         return self.sorted_dic
     def txtmsg(self):
         #create print statement for mass text distribution
-        # print('Most recent update:')
+        string = """"""
         print('List of vacancies:')
         for status in self.sorted_dic:
             s = self.sorted_dic[status]
             if len(s) > 0:
-                print("((("+status+"))):")
+                string += "((("+status+"))): \n"
+                # print("((("+status+"))):")
                 for unit in s:
                     if len(s[unit].notes)>0:
-                        print(s[unit].complex+" "+s[unit].unit+"-- "+s[unit].notes)
+                        string+= s[unit].complex+" "+s[unit].unit+"-- "+s[unit].notes+"\n"
+                        # print(s[unit].complex+" "+s[unit].unit+"-- "+s[unit].notes)
                     else:
-                        print(s[unit].complex + " " +s[unit].unit)
+                        string+= s[unit].complex + " " +s[unit].unit+"\n"
+                        # print(s[unit].complex + " " +s[unit].unit)
+        self.printedmsg = self.printedmsg + string
 
         return None
 
