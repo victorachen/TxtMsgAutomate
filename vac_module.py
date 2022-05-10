@@ -12,6 +12,8 @@ class vacancy_csv(object):
 #returns Data set from AppFolio Vacancy (using def read_csv)
     def __init__(self):
         self.printedmsg = ""
+        #to send or not to send, that is the question
+        self.tosendornot = False
         self.data = []
         self.d = {}
         self.vac_list = []
@@ -33,6 +35,7 @@ class vacancy_csv(object):
         self.sorted_dic()
         #compare (new) gsheet input with old local stuff
         self.compare()
+        #add the sorted dic into self.printed msg
         self.txtmsg()
     def scrapegmail(self):
         ezgmail.init()
@@ -110,10 +113,6 @@ class vacancy_csv(object):
                 self.dic[complex][unit].notes = notes
                 self.dic[complex][unit].person = person
         return self.dic
-    def needupdating(self):
-    #return True if gsheets differ from local old.csv
-    #subsequently shooting out a text msg
-        return True
     def compare(self):
     #compare old csv with gsheet
     #if any incongruity, call update_announcement()
@@ -138,10 +137,12 @@ class vacancy_csv(object):
         #compare the last 2 timestamps
         if oldstamps == newstamps:
             print('nothing to update here!')
+            self.tosendornot = False
             return False
 
         if not oldstamps == newstamps:
             self.updated_lines = []
+            self.tosendornot = True
             # find the index of last matching timestamp,
             for i in oldstamps:
                 try:
@@ -168,7 +169,7 @@ class vacancy_csv(object):
 
     def update_announcement(self):
     #if called upon, change the first few lines of the txt msg (final output)
-        s = """Most Recent Updates: \n"""
+        s = """Most Recent Updates to Vacancies: \n"""
         for i in self.updated_lines:
             person = i[5]
             prop = i[1]
@@ -195,8 +196,7 @@ class vacancy_csv(object):
         return self.sorted_dic
     def txtmsg(self):
         #create print statement for mass text distribution
-        string = """"""
-        print('List of vacancies:')
+        string = """Below are our vacancies & what still needs to be done: \n ------------------------ \n"""
         for status in self.sorted_dic:
             s = self.sorted_dic[status]
             if len(s) > 0:
@@ -209,6 +209,7 @@ class vacancy_csv(object):
                     else:
                         string+= s[unit].complex + " " +s[unit].unit+"\n"
                         # print(s[unit].complex + " " +s[unit].unit)
+        string+= "Please submit updates to: https://forms.gle/ZJminE5umWn9E8YM6"
         self.printedmsg = self.printedmsg + string
 
         return None
@@ -242,10 +243,16 @@ def call_twilio():
     account_sid = readtxtfile()['sid']
     auth_token = readtxtfile()['token']
     client = Client(account_sid, auth_token)
+    #create object from csv class
+    o1 = vacancy_csv()
+    if o1.tosendornot:
+        text = o1.printedmsg
+    else:
+        text = "No updates so no need for a text message!"
 
     message = client.messages \
         .create(
-        body="Tim Duncan is the GOATPF",
+        body=text,
         from_=readtxtfile()['from'],
         to=readtxtfile()['to']
     )
@@ -257,9 +264,9 @@ def readtxtfile():
     text = p.read_text()
     #hard coding the shit out of this bby
     start = text.index('sid')
-    sid = text[start+4: start+4+35]
+    sid = text[start+5: start+4+35]
     start = text.index('token')
-    token = text[start+6: start+6+33]
+    token = text[start+7: start+6+33]
     start = text.index('phone_from')
     phone_from = text[start+11: start+11+13]
     start = text.index('phone_to')
@@ -267,26 +274,9 @@ def readtxtfile():
     d = {'sid':sid,'token':token,'from':phone_from,'to':phone_to}
     return d
 
-o1 = vacancy_csv()
-# o1.txtmsg()
-# for i in o1.dic:
-#     print(o1.dic[i])
-#     for x in o1.dic[i]:
-#         print(x)
-# print(o1.sorted_dic())
-# o1.txtmsg()
-# o1.dic['Holiday']['13'].status = 'something'
-# o1.txtmsg()
-# u= Unit('Holiday','13')
-# print(u.setbedbath(3,2))
-# print(u.price)
-# print(u.setbedbath('?','?'))
-# print(u.price)
-# print(u.price)
-# u.bed = 3
-# u.bath = 2
-# print(u.bed)
-# print(u.price)
+# o1 = vacancy_csv()
+# print(o1.printedmsg)
+call_twilio()
 
 
 
