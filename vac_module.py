@@ -1,9 +1,20 @@
+#to do immediately
+#Write "No Status" in txtmsg()
+#implement beginning line item, read through code, figure out how to make alteration
+#submit a bunch of forms and test
+#weekend: read through csv documentation to delete extra csv fat in local folder
 
-#if under construction, remove from list
-# to do: how much are each unit going for? what is the unit type?
-#simplify down to 3 categories: (1) Rent ready: 2bd/2ba, $2300/mo (2)Unit Still needs work,(3) Rented! (4) No Status yet (Please update using Gform)
-#on the google form, add the guide of how much we are charging for each unit
+
+#3))alter txtmsg with a bunch of if statements (if rent ready: show 2bd/2ba & rent, if needs work, just status,
+#if rented: how much rented for (add attr to unit class) & 2bd/2ba, if under construction: keep it brief (not multiline)
+#4) implement in beginning: "Victor made an update to HP 83, status changed to "Unit still needs work"
+
+#if under construction, add at the very end with minimal space (under construction/land vacant)
+
+#simplify down to 5 categories: (1) Rent ready: 2bd/2ba, $2300/mo (2)Unit Still needs work,(3) Rented! (4) under construction (4) No Status yet (Please update using Gform)
+
 # In Recent updates, say: Wilson 105 updated by Vic to self.statuslist[x] and unit.notes
+#eventually write something that can clean up all the extra unit_vacancy_details
 import ezgmail, os, csv, ezsheets
 from datetime import date
 from twilio.rest import Client
@@ -26,7 +37,7 @@ class vacancy_csv(object):
         # self.statuslist = ['Trash Need To Be Cleaned Out','Undergoing Turnover',\
         #                    'Need Appliances','Need Cleaning','Rent Ready','Rented',\
         #                    'Under Construction', 'No Status']
-        self.statuslist = ['Rent Ready','Unit Still Needs Work','Rented']
+        self.statuslist = ['Rent Ready','Unit Still Needs Work','Rented','Under Construction','No Status (Please Update)']
         self.ss = ezsheets.Spreadsheet('1Jn3vSrRxB3j1oZab3QZd1gnFczyndmLEbeUqn_JaEkU')
         #action items: calling helper functions
         self.scrapegmail()
@@ -87,13 +98,13 @@ class vacancy_csv(object):
                     obj = Unit(self.which_prop(prop), unit)
                     self.dic[self.which_prop(prop)].update({unit:obj})
                     #writing this extra shit (just) for bed/bath
-                    if len(i[2])>2:
-                        bed = i[2][0]
-                        bath = i[2][2]
-                    else:
-                        bed = '?'
-                        bath = '?'
-                    obj.setbedbath(bed,bath)
+                    # if len(i[2])>2:
+                    #     bed = i[2][0]
+                    #     bath = i[2][2]
+                    # else:
+                    #     bed = '?'
+                    #     bath = '?'
+                    # obj.setbedbath(bed,bath)
     def in_dic(self, complex, unit):
     #given complex & unit, return True if they can be found in dictionary
         try:
@@ -109,10 +120,16 @@ class vacancy_csv(object):
             unit = i[2]
             if len(i[0])>0 and self.in_dic(complex,unit):
                 status = i[3]
-                notes = i[4]
-                person = i[5]
+                askingrent = i[4]
+                bedbath = i[5]
+                nextsteps = i[6]
+                actualrent = i[7]
+                person = i[8]
                 self.dic[complex][unit].status = status
-                self.dic[complex][unit].notes = notes
+                self.dic[complex][unit].askingrent = askingrent
+                self.dic[complex][unit].unittype = bedbath
+                self.dic[complex][unit].actualrent = actualrent
+                self.dic[complex][unit].notes = nextsteps
                 self.dic[complex][unit].person = person
         return self.dic
     def compare(self):
@@ -198,19 +215,55 @@ class vacancy_csv(object):
         return self.sorted_dic
     def txtmsg(self):
         #create print statement for mass text distribution
-        string = """Below are our vacancies: please help one another with leasing efforts: \n ------------------------ \n"""
-        for status in self.sorted_dic:
-            s = self.sorted_dic[status]
-            if len(s) > 0:
-                string += "((("+status+"))): \n"
+        string = """Below are our vacancies: Let's work as a team to lease empty spaces, by updating (as often as possible) this form: https://forms.gle/ZJminE5umWn9E8YM6: \n ------------------------ \n"""
+
+        string+= "[[[Rent Ready Units]]]:\n"
+        for i in self.sorted_dic['Rent Ready']:
+            complex = self.sorted_dic['Rent Ready'][i].complex
+            unit = self.sorted_dic['Rent Ready'][i].unit
+            askingrent = self.sorted_dic['Rent Ready'][i].askingrent
+            unittype = self.sorted_dic['Rent Ready'][i].unittype
+            string+= complex +" "+ unit +"("+ unittype+")-- Asking rent: $"+askingrent +"\n"
+
+        string+= "[[[Units That Still Need Work]]]:\n"
+        for i in self.sorted_dic['Unit Still Needs Work']:
+            complex = self.sorted_dic['Rent Ready'][i].complex
+            unit = self.sorted_dic['Rent Ready'][i].unit
+            nextsteps = self.sorted_dic['Rent Ready'][i].notes
+            string+= complex+" "+unit+"-- Status: "+nextsteps
+
+        string+= "[[[Just Rented!]]]:\n"
+        for i in self.sorted_dic['Rented']:
+            complex = self.sorted_dic['Rent Ready'][i].complex
+            unit = self.sorted_dic['Rent Ready'][i].unit
+            actualrent = self.sorted_dic['Rent Ready'][i].actualrent
+            string+= complex+" "+unit+"-- Rented for: $"+actualrent
+
+        string += "[[[Under Construction/Empty Pad]]]:\n"
+
+        L = []
+        for i in self.sorted_dic('Under Construction'):
+            L.append(i)
+
+            # compile everything in list & add to one line in string
+        liststring = ''
+        for x in L:
+            liststring += x + ", "
+        string += liststring+"\n"
+
+
+        # for status in self.sorted_dic:
+        #     s = self.sorted_dic[status]
+        #     if len(s) > 0:
+        #         string += "((("+status+"))): \n"
                 # print("((("+status+"))):")
-                for unit in s:
-                    if len(s[unit].notes)>0:
-                        string+= s[unit].complex+" "+s[unit].unit+"-- "+s[unit].notes+"\n"
-                        # print(s[unit].complex+" "+s[unit].unit+"-- "+s[unit].notes)
-                    else:
-                        string+= s[unit].complex + " " +s[unit].unit+"\n"
-                        # print(s[unit].complex + " " +s[unit].unit)
+                # for unit in s:
+                #     if len(s[unit].notes)>0:
+                #         string+= s[unit].complex+" "+s[unit].unit+"-- "+s[unit].notes+"\n"
+                #         # print(s[unit].complex+" "+s[unit].unit+"-- "+s[unit].notes)
+                #     else:
+                #         string+= s[unit].complex + " " +s[unit].unit+"\n"
+                #         # print(s[unit].complex + " " +s[unit].unit)
         string+= "Please submit updates to: https://forms.gle/ZJminE5umWn9E8YM6"
         self.printedmsg = self.printedmsg + string
 
@@ -220,23 +273,26 @@ class Unit(object):
     def __init__(self, complex, unit):
         self.complex = complex
         self.unit = unit
-        self.bed = 0
-        # self.bath = 0
-        self.status = 'No Status'
-        self.notes = ''
-        self.person = ''
+        self.unittype = 'Empty'
+        self.status = 'No Status (Please Update)'
+        #notes is equivalent to next steps: column 6 in the spreadsheet
+        self.notes = 'Empty'
+        self.person = 'Empty'
+        self.askingrent = 'Empty'
+        self.actualrent = 'Empty'
+        #Don't need all this garbage below, because fuck appfolio, we'll just use gsheets as our update sheet
         # self.bedbath = str(self.bed)+'bd'+str(self.bath)+'ba'
-        self.pricelist = {'1bd1ba': 1350, '2bd1ba': 1450, '2bd2ba': 1500, '3bd1ba': 1550,\
-                          '3bd2ba': 1650, '4bd2ba': 1800}
-    def setbedbath(self,bed,bath):
-        self.bed = bed
-        self.bath = bath
-        self.bedbath = str(self.bed)+'bd'+str(self.bath)+'ba'
-        try:
-            self.price = self.pricelist[self.bedbath]
-        except:
-            self.price = '?'
-        return self.bedbath
+        # self.pricelist = {'1bd1ba': 1350, '2bd1ba': 1450, '2bd2ba': 1500, '3bd1ba': 1550,\
+        #                   '3bd2ba': 1650, '4bd2ba': 1800}
+    # def setbedbath(self,bed,bath):
+    #     self.bed = bed
+    #     self.bath = bath
+    #     self.bedbath = str(self.bed)+'bd'+str(self.bath)+'ba'
+    #     try:
+    #         self.price = self.pricelist[self.bedbath]
+    #     except:
+    #         self.price = '?'
+    #     return self.bedbath
 
     #s2: print statement
 
@@ -281,10 +337,20 @@ def readtxtfile():
     d = {'sid':sid,'token':token,'from':phone_from,'to':phone_to}
     return d
 
-# o1 = vacancy_csv()
-# print(o1.printedmsg)
-# print(o1.tosendornot)
-call_twilio()
+
+
+o1 = vacancy_csv()
+print(o1.dic)
+# print(o1.dic['Holiday']['11'].status)
+print(o1.sorted_dic)
+
+
+# print(o1.sorted_dic['Rent Ready']['Holiday 54'].unittype)
+# print(o1.sorted_dic['Rent Ready']['Holiday 54'].askingrent)
+print(o1.printedmsg)
+
+
+# call_twilio()
 
 
 
