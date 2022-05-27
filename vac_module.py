@@ -1,12 +1,14 @@
 
-#todo:(1) work on needupdating function (
-#(rather than printing everything)
-# (2) create method that checks gsheets and adds to beg of self.printedmsg who has updated what
+#if under construction, remove from list
+# to do: how much are each unit going for? what is the unit type?
+#simplify down to 3 categories: (1) Rent ready: 2bd/2ba, $2300/mo (2)Unit Still needs work,(3) Rented! (4) No Status yet (Please update using Gform)
+#on the google form, add the guide of how much we are charging for each unit
+# In Recent updates, say: Wilson 105 updated by Vic to self.statuslist[x] and unit.notes
 import ezgmail, os, csv, ezsheets
 from datetime import date
 from twilio.rest import Client
 from pathlib import Path
-os.chdir(r'C:\Users\Lenovo\PycharmProjects\Vacancy')
+os.chdir(r'C:\Users\19097\PycharmProjects\VacancyTextScript')
 
 class vacancy_csv(object):
 #returns Data set from AppFolio Vacancy (using def read_csv)
@@ -21,10 +23,10 @@ class vacancy_csv(object):
                             'Hitching Post', 'SFH', 'Patrician']
         self.dic = {'Holiday':{},'Mt Vista': {},'Westwind':{},'Wilson Gardens':{},\
                     'Crestview':{},'Hitching Post':{},'SFH':{},'Patrician':{}}
-        self.statuslist = ['Trash Need To Be Cleaned Out','Undergoing Turnover',\
-                           'Need Appliances','Need Cleaning','Rent Ready','Rented',\
-                           'Under Construction', 'No Status']
-
+        # self.statuslist = ['Trash Need To Be Cleaned Out','Undergoing Turnover',\
+        #                    'Need Appliances','Need Cleaning','Rent Ready','Rented',\
+        #                    'Under Construction', 'No Status']
+        self.statuslist = ['Rent Ready','Unit Still Needs Work','Rented']
         self.ss = ezsheets.Spreadsheet('1Jn3vSrRxB3j1oZab3QZd1gnFczyndmLEbeUqn_JaEkU')
         #action items: calling helper functions
         self.scrapegmail()
@@ -40,7 +42,7 @@ class vacancy_csv(object):
     def scrapegmail(self):
         ezgmail.init()
         thread = ezgmail.search('Batcave located in vacancy')
-        thread[0].messages[0].downloadAllAttachments(downloadFolder=r'C:\Users\Lenovo\PycharmProjects\Vacancy')
+        thread[0].messages[0].downloadAllAttachments(downloadFolder=r'C:\Users\19097\PycharmProjects\VacancyTextScript')
         return None
     def read_csv(self):
         s1 = "unit_vacancy_detail-"
@@ -169,12 +171,12 @@ class vacancy_csv(object):
 
     def update_announcement(self):
     #if called upon, change the first few lines of the txt msg (final output)
-        s = """Most Recent Updates to Vacancies: \n"""
+        s = """Recent Updates: \n -----------\n"""
         for i in self.updated_lines:
             person = i[5]
             prop = i[1]
             space = i[2]
-            s+= prop + ' '+space + ' updated by '+person+'\n'
+            s+= prop + ' status'+ ' '+space + ' updated by '+person+'\n'
         self.printedmsg = s + '\n'+ self.printedmsg
         return None
 
@@ -196,7 +198,7 @@ class vacancy_csv(object):
         return self.sorted_dic
     def txtmsg(self):
         #create print statement for mass text distribution
-        string = """Below are our vacancies & what still needs to be done: \n ------------------------ \n"""
+        string = """Below are our vacancies: please help one another with leasing efforts: \n ------------------------ \n"""
         for status in self.sorted_dic:
             s = self.sorted_dic[status]
             if len(s) > 0:
@@ -245,18 +247,23 @@ def call_twilio():
     client = Client(account_sid, auth_token)
     #create object from csv class
     o1 = vacancy_csv()
-    if o1.tosendornot:
-        text = o1.printedmsg
-    else:
-        text = "No updates so no need for a text message!"
+    text = o1.printedmsg
+    # else:
+    #     text = "No updates so no need for a text message!"
 
-    message = client.messages \
-        .create(
-        body=text,
-        from_=readtxtfile()['from'],
-        to=readtxtfile()['to']
-    )
-    print(message.sid)
+    if o1.tosendornot:
+        message = client.messages \
+            .create(
+            body=text,
+            from_=readtxtfile()['from'],
+            to=readtxtfile()['to']
+        )
+        print('txt msg sent:')
+        print(message.sid)
+    else:
+        print('txt msg should not have sent: there are no updates so no need for a txt msg')
+    return 'nothing'
+
 def readtxtfile():
     #return dictionary of {'sid':x,'token':y,'from':z,'to':a}
     #hiding my keys from you github mf's
@@ -276,6 +283,7 @@ def readtxtfile():
 
 # o1 = vacancy_csv()
 # print(o1.printedmsg)
+# print(o1.tosendornot)
 call_twilio()
 
 
