@@ -1,22 +1,21 @@
 #to do immediately
-#Write "No Status" in txtmsg()
+#figure out how to delete the csv
+#fill out a bunch of new forms, to see how the first line (update txt line) is working
+
 #implement beginning line item, read through code, figure out how to make alteration
 #submit a bunch of forms and test
 #weekend: read through csv documentation to delete extra csv fat in local folder
 
 
-#3))alter txtmsg with a bunch of if statements (if rent ready: show 2bd/2ba & rent, if needs work, just status,
-#if rented: how much rented for (add attr to unit class) & 2bd/2ba, if under construction: keep it brief (not multiline)
-#4) implement in beginning: "Victor made an update to HP 83, status changed to "Unit still needs work"
 
-#if under construction, add at the very end with minimal space (under construction/land vacant)
+#4) implement in beginning: "Victor made an update to HP 83, status changed to "Unit still needs work"
 
 #simplify down to 5 categories: (1) Rent ready: 2bd/2ba, $2300/mo (2)Unit Still needs work,(3) Rented! (4) under construction (4) No Status yet (Please update using Gform)
 
 # In Recent updates, say: Wilson 105 updated by Vic to self.statuslist[x] and unit.notes
 #eventually write something that can clean up all the extra unit_vacancy_details
-import ezgmail, os, csv, ezsheets
-from datetime import date
+import ezgmail, os, csv, ezsheets, glob
+from datetime import date, datetime
 from twilio.rest import Client
 from pathlib import Path
 os.chdir(r'C:\Users\19097\PycharmProjects\VacancyTextScript')
@@ -190,10 +189,12 @@ class vacancy_csv(object):
     #if called upon, change the first few lines of the txt msg (final output)
         s = """Recent Updates: \n -----------\n"""
         for i in self.updated_lines:
-            person = i[5]
+            person = i[8]
             prop = i[1]
             space = i[2]
-            s+= prop + ' status'+ ' '+space + ' updated by '+person+'\n'
+            status = i[3]
+            s+=person+' just updated '+prop+' '+space+',status changed to:'+status+'\n'
+            # s+= prop + ' status'+ ' '+space + ' updated by '+person+'\n'
         self.printedmsg = s + '\n'+ self.printedmsg
         return None
 
@@ -238,18 +239,25 @@ class vacancy_csv(object):
             unit = self.sorted_dic['Rent Ready'][i].unit
             actualrent = self.sorted_dic['Rent Ready'][i].actualrent
             string+= complex+" "+unit+"-- Rented for: $"+actualrent
-
         string += "[[[Under Construction/Empty Pad]]]:\n"
-
         L = []
-        for i in self.sorted_dic('Under Construction'):
+        for i in self.sorted_dic['Under Construction']:
             L.append(i)
-
             # compile everything in list & add to one line in string
         liststring = ''
         for x in L:
             liststring += x + ", "
         string += liststring+"\n"
+
+        string += "[[[No Status (Please Update)]]]:\n"
+        L2 = []
+        for i in self.sorted_dic['No Status (Please Update)']:
+            L2.append(i)
+            # compile everything in list & add to one line in string
+        liststring2 = ''
+        for x in L2:
+            liststring2 += x + ", "
+        string += liststring2 + "\n"
 
 
         # for status in self.sorted_dic:
@@ -268,6 +276,41 @@ class vacancy_csv(object):
         self.printedmsg = self.printedmsg + string
 
         return None
+
+    #delete all the old csv files pulled from appfolio
+    def skimthefat(self):
+        path = r'C:\Users\19097\PycharmProjects\VacancyTextScript\*.csv'
+        for fname in glob.glob(path):
+            #continue only if file is AppFolio unit_vacancy file
+            if 'unit_vacancy_detail' in fname:
+                datestr = fname[-12:-4]
+                year = datestr[2:4]
+                month = datestr[4:6]
+                day = datestr[6:]
+                s = day+'/'+month+'/'+year
+
+                #(2)create datetime object "mightbeold"
+                mightbeold = datetime.strptime(s,'%d/%m/%y')
+
+                #(3) create datetime obj for today
+                year2 = str(date.today().year - 2000)
+                month2 = str(date.today().month)
+                day2 = str(date.today().day)
+                s2 = day2+'/'+month2+'/'+year2
+                todayobj = datetime.strptime(s2,'%d/%m/%y')
+
+                if todayobj>mightbeold:
+                    print('delete the csv')
+
+                print(fname)
+
+        #(1) iterate through all csv's in local folder.
+        #    print file names (as proof of concept)
+        #(2) take each file name and convert to datetime object "potentiallyold"
+        #(3) if datetime.today() > potentiallyold:
+        #       delete the csv file
+
+
 
 class Unit(object):
     def __init__(self, complex, unit):
@@ -340,14 +383,10 @@ def readtxtfile():
 
 
 o1 = vacancy_csv()
-print(o1.dic)
-# print(o1.dic['Holiday']['11'].status)
-print(o1.sorted_dic)
-
-
-# print(o1.sorted_dic['Rent Ready']['Holiday 54'].unittype)
-# print(o1.sorted_dic['Rent Ready']['Holiday 54'].askingrent)
-print(o1.printedmsg)
+# print(o1.dic)
+# print(o1.sorted_dic)
+# print(o1.printedmsg)
+o1.skimthefat()
 
 
 # call_twilio()
