@@ -1,19 +1,4 @@
-#to do immediately
-#figure out how to delete the csv
-#fill out a bunch of new forms, to see how the first line (update txt line) is working
-
-#implement beginning line item, read through code, figure out how to make alteration
-#submit a bunch of forms and test
-#weekend: read through csv documentation to delete extra csv fat in local folder
-
-
-
-#4) implement in beginning: "Victor made an update to HP 83, status changed to "Unit still needs work"
-
-#simplify down to 5 categories: (1) Rent ready: 2bd/2ba, $2300/mo (2)Unit Still needs work,(3) Rented! (4) under construction (4) No Status yet (Please update using Gform)
-
-# In Recent updates, say: Wilson 105 updated by Vic to self.statuslist[x] and unit.notes
-#eventually write something that can clean up all the extra unit_vacancy_details
+#if submit something that is not vacancy, throws off the script
 import ezgmail, os, csv, ezsheets, glob
 from datetime import date, datetime
 from twilio.rest import Client
@@ -49,6 +34,7 @@ class vacancy_csv(object):
         self.compare()
         #add the sorted dic into self.printed msg
         self.txtmsg()
+        self.skimthefat()
     def scrapegmail(self):
         ezgmail.init()
         thread = ezgmail.search('Batcave located in vacancy')
@@ -161,6 +147,7 @@ class vacancy_csv(object):
         if not oldstamps == newstamps:
             self.updated_lines = []
             self.tosendornot = True
+
             # find the index of last matching timestamp,
             for i in oldstamps:
                 try:
@@ -187,13 +174,31 @@ class vacancy_csv(object):
 
     def update_announcement(self):
     #if called upon, change the first few lines of the txt msg (final output)
-        s = """Recent Updates: \n -----------\n"""
+        s = """New Updates: """
         for i in self.updated_lines:
-            person = i[8]
+
             prop = i[1]
             space = i[2]
-            status = i[3]
-            s+=person+' just updated '+prop+' '+space+',status changed to:'+status+'\n'
+            s+= prop + " "+ space + ", "
+
+            #the stuff below is too long and doesn't fit in the 1600 character count
+            #person = i[8]
+            # status = i[3]
+            # askingrent = i[4]
+            # unittype = i[5]
+            # nextsteps = i[6]
+            # actualrent = i[7]
+            # # list = ['Rent Ready', 'Unit Still Needs Work', 'Rented', 'Under Construction',
+            # #               'No Status (Please Update)']
+            # if status == 'Rent Ready':
+            #     s += person + " says: " + prop + ' ' + space + '(' + unittype + ') is Rent Ready for $' + askingrent + '\n'
+            # if status == 'Unit Still Needs Work':
+            #     s += person + " says: " + prop + ' ' + space + ' still needs work, next steps are: ' + nextsteps + '\n'
+            # if status == 'Rented':
+            #     s += person + " says: " + prop + ' ' + space + ' has been rented for: ' + actualrent + '\n'
+            # if status == 'Under Construction':
+            #     s += person + " says: " + prop + ' ' + space + ' is under construction' + '\n'
+
             # s+= prop + ' status'+ ' '+space + ' updated by '+person+'\n'
         self.printedmsg = s + '\n'+ self.printedmsg
         return None
@@ -214,45 +219,69 @@ class vacancy_csv(object):
                 except:
                     print("the object's (that you're looping thru) status does not exist")
         return self.sorted_dic
+
+    #helper function for method below
+    #abbreviate name of complex for txt msg. takes in full name of unit & returns abbr unit name string
+    def abbr_complex(self, complex):
+        d = {'Holiday':'Hol', 'Mt Vista':'MtV', 'Westwind':'West', 'Wilson Gardens':'Wilson', 'Crestview':'Crest', \
+         'Hitching Post':'HP', 'SFH':'SFH', 'Patrician':'Pat'}
+        return d[complex]
+
     def txtmsg(self):
         #create print statement for mass text distribution
-        string = """Below are our vacancies: Let's work as a team to lease empty spaces, by updating (as often as possible) this form: https://forms.gle/ZJminE5umWn9E8YM6: \n ------------------------ \n"""
-
-        string+= "[[[Rent Ready Units]]]:\n"
+        string = """"""
+        string += "\n"
+        string+= "Rent Ready Units:\n"
+        string += "--------------------------------\n"
         for i in self.sorted_dic['Rent Ready']:
             complex = self.sorted_dic['Rent Ready'][i].complex
             unit = self.sorted_dic['Rent Ready'][i].unit
             askingrent = self.sorted_dic['Rent Ready'][i].askingrent
             unittype = self.sorted_dic['Rent Ready'][i].unittype
-            string+= complex +" "+ unit +"("+ unittype+")-- Asking rent: $"+askingrent +"\n"
+            string+= self.abbr_complex(complex) +" "+ unit +"("+ unittype+")- $"+askingrent +"\n"
 
-        string+= "[[[Units That Still Need Work]]]:\n"
+        string+= " \n"
+        string+= "Units That Still Need Work:\n"
+        string+= "--------------------------------\n"
         for i in self.sorted_dic['Unit Still Needs Work']:
-            complex = self.sorted_dic['Rent Ready'][i].complex
-            unit = self.sorted_dic['Rent Ready'][i].unit
-            nextsteps = self.sorted_dic['Rent Ready'][i].notes
-            string+= complex+" "+unit+"-- Status: "+nextsteps
+            complex = self.sorted_dic['Unit Still Needs Work'][i].complex
+            unit = self.sorted_dic['Unit Still Needs Work'][i].unit
+            nextsteps = self.sorted_dic['Unit Still Needs Work'][i].notes
+            string+= self.abbr_complex(complex)+" "+unit+"- "+nextsteps+"\n"
 
-        string+= "[[[Just Rented!]]]:\n"
+        string+= "\n"
+        string+= "Just Rented:\n"
+        string += "-  -  -  -  -  -  -  -  -  -  -  -\n"
         for i in self.sorted_dic['Rented']:
-            complex = self.sorted_dic['Rent Ready'][i].complex
-            unit = self.sorted_dic['Rent Ready'][i].unit
-            actualrent = self.sorted_dic['Rent Ready'][i].actualrent
-            string+= complex+" "+unit+"-- Rented for: $"+actualrent
-        string += "[[[Under Construction/Empty Pad]]]:\n"
+            complex = self.sorted_dic['Rented'][i].complex
+            unit = self.sorted_dic['Rented'][i].unit
+            actualrent = self.sorted_dic['Rented'][i].actualrent
+            string+= self.abbr_complex(complex)+" "+unit+" rented for: $"+actualrent+"\n"
+
+        string+= "\n"
+        string += "Under Construction:\n"
+        string += "--------------------------------\n"
         L = []
         for i in self.sorted_dic['Under Construction']:
-            L.append(i)
+            complex = self.abbr_complex(self.sorted_dic['Under Construction'][i].complex)
+            unit = self.sorted_dic['Under Construction'][i].unit
+            combined = complex + " "+ unit
+            L.append(combined)
             # compile everything in list & add to one line in string
         liststring = ''
         for x in L:
             liststring += x + ", "
         string += liststring+"\n"
 
-        string += "[[[No Status (Please Update)]]]:\n"
+        string+= "\n"
+        string += "No Status (Please Update):\n"
+        string += "--------------------------------\n"
         L2 = []
         for i in self.sorted_dic['No Status (Please Update)']:
-            L2.append(i)
+            complex = self.abbr_complex(self.sorted_dic['No Status (Please Update)'][i].complex)
+            unit = self.sorted_dic['No Status (Please Update)'][i].unit
+            combined = complex + " " + unit
+            L2.append(combined)
             # compile everything in list & add to one line in string
         liststring2 = ''
         for x in L2:
@@ -272,6 +301,7 @@ class vacancy_csv(object):
                 #     else:
                 #         string+= s[unit].complex + " " +s[unit].unit+"\n"
                 #         # print(s[unit].complex + " " +s[unit].unit)
+        string+= "\n"
         string+= "Please submit updates to: https://forms.gle/ZJminE5umWn9E8YM6"
         self.printedmsg = self.printedmsg + string
 
@@ -280,6 +310,8 @@ class vacancy_csv(object):
     #delete all the old csv files pulled from appfolio
     def skimthefat(self):
         path = r'C:\Users\19097\PycharmProjects\VacancyTextScript\*.csv'
+
+        count = 0
         for fname in glob.glob(path):
             #continue only if file is AppFolio unit_vacancy file
             if 'unit_vacancy_detail' in fname:
@@ -300,17 +332,11 @@ class vacancy_csv(object):
                 todayobj = datetime.strptime(s2,'%d/%m/%y')
 
                 if todayobj>mightbeold:
-                    print('delete the csv')
-
-                print(fname)
-
-        #(1) iterate through all csv's in local folder.
-        #    print file names (as proof of concept)
-        #(2) take each file name and convert to datetime object "potentiallyold"
-        #(3) if datetime.today() > potentiallyold:
-        #       delete the csv file
-
-
+                    count+=1
+                    os.remove(fname)
+                    print('removed '+fname)
+        if count == 0:
+            print('No milk to skim!')
 
 class Unit(object):
     def __init__(self, complex, unit):
@@ -381,15 +407,14 @@ def readtxtfile():
     return d
 
 
-
-o1 = vacancy_csv()
+#
+# o1 = vacancy_csv()
+# print(o1.printedmsg)
 # print(o1.dic)
 # print(o1.sorted_dic)
 # print(o1.printedmsg)
-o1.skimthefat()
 
-
-# call_twilio()
+call_twilio()
 
 
 
