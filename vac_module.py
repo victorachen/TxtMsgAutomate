@@ -1,4 +1,4 @@
-#if submit something that is not vacancy, throws off the script
+#toss something back in No Status
 import ezgmail, os, csv, ezsheets, glob
 from datetime import date, datetime
 from twilio.rest import Client
@@ -82,14 +82,7 @@ class vacancy_csv(object):
                     # print(unit,prop)
                     obj = Unit(self.which_prop(prop), unit)
                     self.dic[self.which_prop(prop)].update({unit:obj})
-                    #writing this extra shit (just) for bed/bath
-                    # if len(i[2])>2:
-                    #     bed = i[2][0]
-                    #     bath = i[2][2]
-                    # else:
-                    #     bed = '?'
-                    #     bath = '?'
-                    # obj.setbedbath(bed,bath)
+
     def in_dic(self, complex, unit):
     #given complex & unit, return True if they can be found in dictionary
         try:
@@ -174,32 +167,31 @@ class vacancy_csv(object):
 
     def update_announcement(self):
     #if called upon, change the first few lines of the txt msg (final output)
-        s = """New Updates: """
+        s = """"""
+        personlist = []
         for i in self.updated_lines:
+            person = i[8]
+            if person not in personlist:
+                personlist.append(person)
 
-            prop = i[1]
+        for i in range(len(personlist)):
+            if i < len(personlist)-1:
+                s+= personlist[i]+", "
+            else:
+                s+= personlist[i]
+
+        s += " recently updated: "
+
+        count = 0
+        for i in self.updated_lines:
+            count+=1
+            prop = self.abbr_complex(i[1])
             space = i[2]
-            s+= prop + " "+ space + ", "
+            if count < len(self.updated_lines):
+                s+= prop + " "+ space + ", "
+            else:
+                s+= prop + " " + space
 
-            #the stuff below is too long and doesn't fit in the 1600 character count
-            #person = i[8]
-            # status = i[3]
-            # askingrent = i[4]
-            # unittype = i[5]
-            # nextsteps = i[6]
-            # actualrent = i[7]
-            # # list = ['Rent Ready', 'Unit Still Needs Work', 'Rented', 'Under Construction',
-            # #               'No Status (Please Update)']
-            # if status == 'Rent Ready':
-            #     s += person + " says: " + prop + ' ' + space + '(' + unittype + ') is Rent Ready for $' + askingrent + '\n'
-            # if status == 'Unit Still Needs Work':
-            #     s += person + " says: " + prop + ' ' + space + ' still needs work, next steps are: ' + nextsteps + '\n'
-            # if status == 'Rented':
-            #     s += person + " says: " + prop + ' ' + space + ' has been rented for: ' + actualrent + '\n'
-            # if status == 'Under Construction':
-            #     s += person + " says: " + prop + ' ' + space + ' is under construction' + '\n'
-
-            # s+= prop + ' status'+ ' '+space + ' updated by '+person+'\n'
         self.printedmsg = s + '\n'+ self.printedmsg
         return None
 
@@ -231,8 +223,8 @@ class vacancy_csv(object):
         #create print statement for mass text distribution
         string = """"""
         string += "\n"
-        string+= "Rent Ready Units:\n"
-        string += "--------------------------------\n"
+        string+= "Rent Ready:\n"
+        string += "-  -  -  -  -  -  -  -  -  -  -\n"
         for i in self.sorted_dic['Rent Ready']:
             complex = self.sorted_dic['Rent Ready'][i].complex
             unit = self.sorted_dic['Rent Ready'][i].unit
@@ -241,26 +233,29 @@ class vacancy_csv(object):
             string+= self.abbr_complex(complex) +" "+ unit +"("+ unittype+")- $"+askingrent +"\n"
 
         string+= " \n"
-        string+= "Units That Still Need Work:\n"
-        string+= "--------------------------------\n"
+        string+= "Unit Turns:\n"
+        string+= "-  -  -  -  -  -  -  -  -  -  -\n"
         for i in self.sorted_dic['Unit Still Needs Work']:
             complex = self.sorted_dic['Unit Still Needs Work'][i].complex
             unit = self.sorted_dic['Unit Still Needs Work'][i].unit
             nextsteps = self.sorted_dic['Unit Still Needs Work'][i].notes
+            if nextsteps == "":
+                nextsteps = "What's next?"
             string+= self.abbr_complex(complex)+" "+unit+"- "+nextsteps+"\n"
 
         string+= "\n"
         string+= "Just Rented:\n"
-        string += "-  -  -  -  -  -  -  -  -  -  -  -\n"
+        string += "-  -  -  -  -  -  -  -  -  -  -\n"
+
         for i in self.sorted_dic['Rented']:
             complex = self.sorted_dic['Rented'][i].complex
             unit = self.sorted_dic['Rented'][i].unit
             actualrent = self.sorted_dic['Rented'][i].actualrent
-            string+= self.abbr_complex(complex)+" "+unit+" rented for: $"+actualrent+"\n"
+            string+= self.abbr_complex(complex) +" "+ unit +"("+ unittype+")- $"+actualrent +"\n"
 
         string+= "\n"
         string += "Under Construction:\n"
-        string += "--------------------------------\n"
+        string += "-  -  -  -  -  -  -  -  -  -  -\n"
         L = []
         for i in self.sorted_dic['Under Construction']:
             complex = self.abbr_complex(self.sorted_dic['Under Construction'][i].complex)
@@ -275,7 +270,7 @@ class vacancy_csv(object):
 
         string+= "\n"
         string += "No Status (Please Update):\n"
-        string += "--------------------------------\n"
+        string += "-  -  -  -  -  -  -  -  -  -  -\n"
         L2 = []
         for i in self.sorted_dic['No Status (Please Update)']:
             complex = self.abbr_complex(self.sorted_dic['No Status (Please Update)'][i].complex)
@@ -288,21 +283,8 @@ class vacancy_csv(object):
             liststring2 += x + ", "
         string += liststring2 + "\n"
 
-
-        # for status in self.sorted_dic:
-        #     s = self.sorted_dic[status]
-        #     if len(s) > 0:
-        #         string += "((("+status+"))): \n"
-                # print("((("+status+"))):")
-                # for unit in s:
-                #     if len(s[unit].notes)>0:
-                #         string+= s[unit].complex+" "+s[unit].unit+"-- "+s[unit].notes+"\n"
-                #         # print(s[unit].complex+" "+s[unit].unit+"-- "+s[unit].notes)
-                #     else:
-                #         string+= s[unit].complex + " " +s[unit].unit+"\n"
-                #         # print(s[unit].complex + " " +s[unit].unit)
         string+= "\n"
-        string+= "Please submit updates to: https://forms.gle/ZJminE5umWn9E8YM6"
+        string+= "This is an automated txt msg --> all managers. Pls update: https://forms.gle/ZJminE5umWn9E8YM6"
         self.printedmsg = self.printedmsg + string
 
         return None
@@ -349,21 +331,6 @@ class Unit(object):
         self.person = 'Empty'
         self.askingrent = 'Empty'
         self.actualrent = 'Empty'
-        #Don't need all this garbage below, because fuck appfolio, we'll just use gsheets as our update sheet
-        # self.bedbath = str(self.bed)+'bd'+str(self.bath)+'ba'
-        # self.pricelist = {'1bd1ba': 1350, '2bd1ba': 1450, '2bd2ba': 1500, '3bd1ba': 1550,\
-        #                   '3bd2ba': 1650, '4bd2ba': 1800}
-    # def setbedbath(self,bed,bath):
-    #     self.bed = bed
-    #     self.bath = bath
-    #     self.bedbath = str(self.bed)+'bd'+str(self.bath)+'ba'
-    #     try:
-    #         self.price = self.pricelist[self.bedbath]
-    #     except:
-    #         self.price = '?'
-    #     return self.bedbath
-
-    #s2: print statement
 
 def call_twilio():
     #call twilio api to print
@@ -373,18 +340,23 @@ def call_twilio():
     #create object from csv class
     o1 = vacancy_csv()
     text = o1.printedmsg
-    # else:
-    #     text = "No updates so no need for a text message!"
+    numbers_to_message = ['+19098163161']
 
     if o1.tosendornot:
-        message = client.messages \
-            .create(
-            body=text,
-            from_=readtxtfile()['from'],
-            to=readtxtfile()['to']
-        )
+        for number in numbers_to_message:
+            client.messages.create(
+                body = text,
+                from_=readtxtfile()['from'],
+                to = number
+            )
+        # message = client.messages \
+        #     .create(
+        #     body=text,
+        #     from_=readtxtfile()['from'],
+        #     to=readtxtfile()['to']
+        # )
         print('txt msg sent:')
-        print(message.sid)
+        # print(message.sid)
     else:
         print('txt msg should not have sent: there are no updates so no need for a txt msg')
     return 'nothing'
