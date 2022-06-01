@@ -1,4 +1,9 @@
-#toss something back in No Status
+#code up a construction txt msg
+#Make sure everything is uploaded onto the GDrive shared folder: 'link'
+#(1) Waiting for HCD Permit (2) Waiting for City Permit, (3) Waiting for HCD Insp (4) Waiting for City Insp (5) Passed (6) No Status
+#one unit can only belong to one category
+
+#communicate to managers: statuses can be changed
 import ezgmail, os, csv, ezsheets, glob
 from datetime import date, datetime
 from twilio.rest import Client
@@ -15,9 +20,9 @@ class vacancy_csv(object):
         self.d = {}
         self.vac_list = []
         self.properties = ['Holiday', 'Mt Vista', 'Westwind', 'Wilson Gardens', 'Crestview',\
-                            'Hitching Post', 'SFH', 'Patrician']
+                            'Hitching Post', 'SFH', 'Patrician','Wishing Well']
         self.dic = {'Holiday':{},'Mt Vista': {},'Westwind':{},'Wilson Gardens':{},\
-                    'Crestview':{},'Hitching Post':{},'SFH':{},'Patrician':{}}
+                    'Crestview':{},'Hitching Post':{},'SFH':{},'Patrician':{},'Wishing Well':{}}
         # self.statuslist = ['Trash Need To Be Cleaned Out','Undergoing Turnover',\
         #                    'Need Appliances','Need Cleaning','Rent Ready','Rented',\
         #                    'Under Construction', 'No Status']
@@ -216,8 +221,17 @@ class vacancy_csv(object):
     #abbreviate name of complex for txt msg. takes in full name of unit & returns abbr unit name string
     def abbr_complex(self, complex):
         d = {'Holiday':'Hol', 'Mt Vista':'MtV', 'Westwind':'West', 'Wilson Gardens':'Wilson', 'Crestview':'Crest', \
-         'Hitching Post':'HP', 'SFH':'SFH', 'Patrician':'Pat'}
+         'Hitching Post':'HP', 'SFH':'SFH', 'Patrician':'Pat','Wishing Well':'Wish'}
         return d[complex]
+    #abbreviate name of unit type from "2Bd 2 Ba"--> "(2/2)"
+    def abbr_type(self,unittype):
+        txt = unittype
+        L = [s for s in txt.split() if s.isdigit()]
+        if txt == 'N/A':
+            s2 = "(?/?)"
+        else:
+            s2 = "("+L[0]+"/"+L[1]+")"
+        return s2
 
     def txtmsg(self):
         #create print statement for mass text distribution
@@ -230,7 +244,7 @@ class vacancy_csv(object):
             unit = self.sorted_dic['Rent Ready'][i].unit
             askingrent = self.sorted_dic['Rent Ready'][i].askingrent
             unittype = self.sorted_dic['Rent Ready'][i].unittype
-            string+= self.abbr_complex(complex) +" "+ unit +"("+ unittype+")- $"+askingrent +"\n"
+            string+= self.abbr_complex(complex) +" "+ unit+ self.abbr_type(unittype)+"- $"+askingrent +"\n"
 
         string+= " \n"
         string+= "Unit Turns:\n"
@@ -239,9 +253,10 @@ class vacancy_csv(object):
             complex = self.sorted_dic['Unit Still Needs Work'][i].complex
             unit = self.sorted_dic['Unit Still Needs Work'][i].unit
             nextsteps = self.sorted_dic['Unit Still Needs Work'][i].notes
+            unittype = self.sorted_dic['Unit Still Needs Work'][i].unittype
             if nextsteps == "":
                 nextsteps = "What's next?"
-            string+= self.abbr_complex(complex)+" "+unit+"- "+nextsteps+"\n"
+            string+= self.abbr_complex(complex) +" "+ unit+ self.abbr_type(unittype)+"- "+nextsteps +"\n"
 
         string+= "\n"
         string+= "Just Rented:\n"
@@ -251,7 +266,8 @@ class vacancy_csv(object):
             complex = self.sorted_dic['Rented'][i].complex
             unit = self.sorted_dic['Rented'][i].unit
             actualrent = self.sorted_dic['Rented'][i].actualrent
-            string+= self.abbr_complex(complex) +" "+ unit +"("+ unittype+")- $"+actualrent +"\n"
+            unittype = self.sorted_dic['Rented'][i].unittype
+            string+= self.abbr_complex(complex) +" "+ unit+ self.abbr_type(unittype)+"- $"+actualrent +"\n"
 
         string+= "\n"
         string += "Under Construction:\n"
@@ -269,7 +285,7 @@ class vacancy_csv(object):
         string += liststring+"\n"
 
         string+= "\n"
-        string += "No Status (Please Update):\n"
+        string += "No Status (Pls Update):\n"
         string += "-  -  -  -  -  -  -  -  -  -  -\n"
         L2 = []
         for i in self.sorted_dic['No Status (Please Update)']:
@@ -332,15 +348,28 @@ class Unit(object):
         self.askingrent = 'Empty'
         self.actualrent = 'Empty'
 
+#return list of numbers to message
+def numberstomessage():
+    d = {'Victor':'+19098163161','Jian':'+19092101491','Karla':'+19097677208','Brian':'+19097140840',
+        'Richard':'+19516639308','Jeff':'+19092228209','Tony':'+16269991519','Hector':'+19094897033',
+         'Charles':'+19095507143','Amanda':'+19094861526'
+    }
+    L = []
+    for i in d:
+        L.append(d[i])
+    return L
+
 def call_twilio():
     #call twilio api to print
+    L = numberstomessage()
     account_sid = readtxtfile()['sid']
     auth_token = readtxtfile()['token']
     client = Client(account_sid, auth_token)
     #create object from csv class
     o1 = vacancy_csv()
     text = o1.printedmsg
-    numbers_to_message = ['+19098163161']
+    numbers_to_message = L
+    print(L)
 
     if o1.tosendornot:
         for number in numbers_to_message:
@@ -387,6 +416,7 @@ def readtxtfile():
 # print(o1.printedmsg)
 
 call_twilio()
+# numberstomessage()
 
 
 
