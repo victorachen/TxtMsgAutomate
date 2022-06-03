@@ -1,4 +1,6 @@
-#code up a construction txt msg
+#tomorrow: if status is this, string adds this unit, if status is that, string adds that unit
+#really spend time thinking about the different categories
+
 #Make sure everything is uploaded onto the GDrive shared folder: 'link'
 #(1) Waiting for HCD Permit (2) Waiting for City Permit, (3) Waiting for HCD Insp (4) Waiting for City Insp (5) Passed (6) No Status
 #one unit can only belong to one category
@@ -340,10 +342,33 @@ class vacancy_csv(object):
         if count == 0:
             print('No milk to skim!')
 
-    #for the "Construction" class, passes in a dictionary of all the units under construction
-    def GetConUnits(self):
-        d = self.sorted_dic
-        return d
+    #----------------------------------------------------------------------------------------------------
+    #All this stuff below is for the Construction text message
+
+    #scrape Construction GSheet & update the sorted_dic
+    def Constr_Gsheet(self):
+        sheet = ezsheets.Spreadsheet('1cIAuVUS9W3GHqjtQV3tK5a2fK41UhpNgXpkFTASDbss')[0]
+        for i in sheet:
+            Unit = i[1] + " " + i[2]
+            if i[0] != '' and Unit in self.sorted_dic['Under Construction']:
+                Status = i[3]
+                self.sorted_dic['Under Construction'][Unit].constr_status = Status
+        return None
+
+    #return txt msg (string) for construction statuses only
+    def Constr_txtmsg(self):
+        #(1) Waiting for HCD Permit (2) Waiting for City Permit, (3) Waiting for HCD Insp (4) Waiting for City Insp (5) Passed (6) No Status
+        statuses = ['No Yuc Perm Submitted','W8 Yuc Perm','W8 HCD Perm','W8 HCD Insp','W8 Yuc Insp','No Status']
+        #if no yuc per submitted, return size of lot and size of (max) coach
+
+        #first, let's call our helper to update our dictionary
+        self.Constr_Gsheet()
+        txtmsg = ""
+        for unit in self.sorted_dic['Under Construction']:
+            constr_status = self.sorted_dic['Under Construction'][unit].constr_status
+            print(constr_status)
+        return txtmsg
+
 class Unit(object):
     def __init__(self, complex, unit):
         self.complex = complex
@@ -355,6 +380,9 @@ class Unit(object):
         self.person = 'Empty'
         self.askingrent = 'Empty'
         self.actualrent = 'Empty'
+        #----------------------------------------------------
+        #Everything below is for construction texter
+        self.constr_status = 'No Status'
 
 #return list of numbers to message
 def numberstomessage():
@@ -415,27 +443,20 @@ def readtxtfile():
     d = {'sid':sid,'token':token,'from':phone_from,'to':phone_to}
     return d
 
-
 #1 import all the construction units from vacancy_csv [L]
 #2 create subclass "constr_unit", with attr a) complex, (b) uinit, (c) constr status, d)serial, c) etc
 #3 loop through [L] & create a bunch of constr_unit objects [L2]
 #4 gsheets method to get updates to update respective units
 #5 create print method that loops through L2 & sorts printedtxtmsg based on object.constr_status
 
-class Construction(vacancy_csv):
-    def __init__(self):
-        # vacancy_csv.__init__(self)
-        self.nothing = 'void'
-    def gsheets2(self):
-        d = self.sorted_dic()
-        print(d)
-        return d
 
-# o1 = vacancy_csv()
+
+o1 = vacancy_csv()
+o1.Constr_txtmsg()
 # print(o1.samplelist())
 # print(o1.printedmsg)
-o2 = Construction()
-print(o2.gsheets2())
+# o2 = Construction()
+# print(o2.gsheets2())
 # print(o2.printedmsg)
 
 
