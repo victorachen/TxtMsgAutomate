@@ -1,9 +1,10 @@
-#tomorrow: if status is this, string adds this unit, if status is that, string adds that unit
-#really spend time thinking about the different categories
+#Construction notes to add to script-running computer:
+#(1) everything from line 345 onward (make sure you update the unit class as well)
+#(2) call function that executes constr_txt is at very end of script
 
-#Make sure everything is uploaded onto the GDrive shared folder: 'link'
-#(1) Waiting for HCD Permit (2) Waiting for City Permit, (3) Waiting for HCD Insp (4) Waiting for City Insp (5) Passed (6) No Status
-#one unit can only belong to one category
+#to do next immediately:
+#1 rework the google form 2 add new google columns into Constr_Gsheet
+# 3 tweak txt msg html stuff 4 write ezgmail function 5 start updating the list baby
 
 #communicate to managers: statuses can be changed
 import ezgmail, os, csv, ezsheets, glob
@@ -343,7 +344,8 @@ class vacancy_csv(object):
             print('No milk to skim!')
 
     #----------------------------------------------------------------------------------------------------
-    #All this stuff below is for the Construction text message
+    #All this stuff below is for the Construction text
+    #we continue to jam all this stuff in Object1, so we don't have to call object twice
 
     #scrape Construction GSheet & update the sorted_dic
     def Constr_Gsheet(self):
@@ -357,18 +359,55 @@ class vacancy_csv(object):
 
     #return txt msg (string) for construction statuses only
     def Constr_txtmsg(self):
+
         #(1) Waiting for HCD Permit (2) Waiting for City Permit, (3) Waiting for HCD Insp (4) Waiting for City Insp (5) Passed (6) No Status
-        statuses = ['No Yuc Perm Submitted','W8 Yuc Perm','W8 HCD Perm','W8 HCD Insp','W8 Yuc Insp','No Status']
+        statuses = ['Vacant Land - Undecided','Vacant Land - Permit Submitted','Permit Approved - Under Constr',\
+                    'Almost Ready 4 Insp','No Permit 4 this 1','No Status']
         #if no yuc per submitted, return size of lot and size of (max) coach
 
         #first, let's call our helper to update our dictionary
         self.Constr_Gsheet()
-        txtmsg = ""
+
+        s0=""""""
+        s1 = """"""
+        s2 = """"""
+        s3 = """"""
+        s4 = """"""
+        s5 = """"""
         for unit in self.sorted_dic['Under Construction']:
             constr_status = self.sorted_dic['Under Construction'][unit].constr_status
-            print(constr_status)
-        return txtmsg
+            lotlength = str(self.sorted_dic['Under Construction'][unit].lotlength)
+            lotwidth = str(self.sorted_dic['Under Construction'][unit].lotwidth)
+            constr_notes = self.sorted_dic['Under Construction'][unit].constr_notes
+            serial = self.sorted_dic['Under Construction'][unit].serial
+            decal = self.sorted_dic['Under Construction'][unit].decal
+            whoworking = self.sorted_dic['Under Construction'][unit].whoworking
+            constr_nextsteps = self.sorted_dic['Under Construction'][unit].constr_nextsteps
+            if constr_status == statuses[0]:
+                s0+= unit+': ('+lotwidth+'x'+lotlength+') - lot size'+';'+'fits up to: WxL coach \n'
+                s0+='     Notes: xyz\n'
+            if constr_status == statuses[1]:
+                s1+= unit + "\n"
+            if constr_status == statuses[2]:
+                s2+= unit+': '+whoworking+' working on it'+ "\n"
+                s2+= 'Notes: xyz \n'
+            if constr_status == statuses[3]:
+                s3+= unit + "\n"
+            if constr_status == statuses[4]:
+                s4+= unit + "\n"
+            if constr_status == statuses[5]:
+                s5+= unit + "\n"
 
+        final_s = """"""
+        final_s += "Vacant Land - Undecided \n-  -  -  -  -  -  -  -  -  -\n"+s0
+        final_s += "\nVacant Land - Permit Submitted\n -  -  -  -  -  -  -  -  -  -\n"+s1
+        final_s += "\nPermit Approved - Under Constr \n-  -  -  -  -  -  -  -  -  -\n"+s2
+        final_s += "\nAlmost Ready 4 Insp \n-  -  -  -  -  -  -  -  -  -\n"+s3
+        final_s += "\nNo Permit 4 this 1 \n-  -  -  -  -  -  -  -  -  -\n"+s4
+        final_s += "\nNo Status\n-  -  -  -  -  -  -  -  -  -\n"+s5
+        return final_s
+
+#----------------------------------------------------------------------------------------------------------------
 class Unit(object):
     def __init__(self, complex, unit):
         self.complex = complex
@@ -383,6 +422,30 @@ class Unit(object):
         #----------------------------------------------------
         #Everything below is for construction texter
         self.constr_status = 'No Status'
+        self.lotlength = 0
+        self.lotwidth = 0
+        self.constr_notes = ''
+        self.serial = ''
+        self.decal = ''
+        self.whoworking = ''
+        self.constr_nextsteps = ''
+
+def readtxtfile():
+    #return dictionary of {'sid':x,'token':y,'from':z,'to':a}
+    #hiding my keys from you github mf's
+    p = Path('twiliocreds.txt')
+    text = p.read_text()
+    #hard coding the shit out of this bby
+    start = text.index('sid')
+    sid = text[start+5: start+4+35]
+    start = text.index('token')
+    token = text[start+7: start+6+33]
+    start = text.index('phone_from')
+    phone_from = text[start+11: start+11+13]
+    start = text.index('phone_to')
+    phone_to = text[start+9: start+9+13]
+    d = {'sid':sid,'token':token,'from':phone_from,'to':phone_to}
+    return d
 
 #return list of numbers to message
 def numberstomessage():
@@ -426,22 +489,14 @@ def call_twilio():
         print('txt msg should not have sent: there are no updates so no need for a txt msg')
     return 'nothing'
 
-def readtxtfile():
-    #return dictionary of {'sid':x,'token':y,'from':z,'to':a}
-    #hiding my keys from you github mf's
-    p = Path('twiliocreds.txt')
-    text = p.read_text()
-    #hard coding the shit out of this bby
-    start = text.index('sid')
-    sid = text[start+5: start+4+35]
-    start = text.index('token')
-    token = text[start+7: start+6+33]
-    start = text.index('phone_from')
-    phone_from = text[start+11: start+11+13]
-    start = text.index('phone_to')
-    phone_to = text[start+9: start+9+13]
-    d = {'sid':sid,'token':token,'from':phone_from,'to':phone_to}
-    return d
+#CONSTRUCTION------------------------------------------------------------------------------
+#just like call_twilio, we call ezgmail for the construction email to send to everyone
+def call_ezgmail():
+    o1 = vacancy_csv()
+    print(o1.Constr_txtmsg())
+    return None
+call_ezgmail()
+#--------------------------------------------------------------------------------------
 
 #1 import all the construction units from vacancy_csv [L]
 #2 create subclass "constr_unit", with attr a) complex, (b) uinit, (c) constr status, d)serial, c) etc
@@ -451,21 +506,8 @@ def readtxtfile():
 
 
 
-o1 = vacancy_csv()
-o1.Constr_txtmsg()
-# print(o1.samplelist())
-# print(o1.printedmsg)
-# o2 = Construction()
-# print(o2.gsheets2())
-# print(o2.printedmsg)
 
 
-# print(o1.dic)
-# print(o1.sorted_dic)
-# print(o1.printedmsg)
-
-# call_twilio()
-# numberstomessage()
 
 
 
