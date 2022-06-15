@@ -11,6 +11,7 @@ import ezgmail, os, csv, ezsheets, glob
 from datetime import date, datetime
 from twilio.rest import Client
 from pathlib import Path
+from string import digits
 os.chdir(r'C:\Users\Lenovo\PycharmProjects\Vacancy')
 
 class vacancy_csv(object):
@@ -353,8 +354,13 @@ class vacancy_csv(object):
         for i in sheet:
             Unit = i[1] + " " + i[2]
             if i[0] != '' and Unit in self.sorted_dic['Under Construction']:
-                Status = i[3]
-                self.sorted_dic['Under Construction'][Unit].constr_status = Status
+                self.sorted_dic['Under Construction'][Unit].constr_status = i[3]
+                self.sorted_dic['Under Construction'][Unit].lotlength = i[4]
+                self.sorted_dic['Under Construction'][Unit].lotwidth = i[5]
+                self.sorted_dic['Under Construction'][Unit].constr_notes = i[6]
+                self.sorted_dic['Under Construction'][Unit].serial = i[7]
+                self.sorted_dic['Under Construction'][Unit].decal = i[8]
+                self.sorted_dic['Under Construction'][Unit].whoworking = i[9]
         return None
 
     #return txt msg (string) for construction statuses only
@@ -375,6 +381,8 @@ class vacancy_csv(object):
         s4 = """"""
         s5 = """"""
         for unit in self.sorted_dic['Under Construction']:
+            prop = self.sorted_dic['Under Construction'][unit].complex
+            spacenum = self.sorted_dic['Under Construction'][unit].unit
             constr_status = self.sorted_dic['Under Construction'][unit].constr_status
             lotlength = str(self.sorted_dic['Under Construction'][unit].lotlength)
             lotwidth = str(self.sorted_dic['Under Construction'][unit].lotwidth)
@@ -383,20 +391,42 @@ class vacancy_csv(object):
             decal = self.sorted_dic['Under Construction'][unit].decal
             whoworking = self.sorted_dic['Under Construction'][unit].whoworking
             constr_nextsteps = self.sorted_dic['Under Construction'][unit].constr_nextsteps
+
+            #abbreviate
+            u = self.abbr_complex(prop)+' '+spacenum
+            NoPermit_L = []
+            NoStatus_L = []
             if constr_status == statuses[0]:
-                s0+= unit+': ('+lotwidth+'x'+lotlength+') - lot size'+';'+'fits up to: WxL coach \n'
-                s0+='     Notes: xyz\n'
+                s0+= u+'- Lot Size: '+lotwidth+'x'+lotlength+' '+';'+'fits up to: WxL coach \n'
+                s0+= u + ' Notes: '+constr_notes
             if constr_status == statuses[1]:
-                s1+= unit + "\n"
+                s1+= u + ', Serial: '+serial+', Decal:'+decal+"\n"
+                s1+= u + ' Notes: '+constr_notes
             if constr_status == statuses[2]:
-                s2+= unit+': '+whoworking+' working on it'+ "\n"
-                s2+= 'Notes: xyz \n'
+                s2+= u+': '+whoworking+' working on it'+ "\n"
+                s2+= u + ' Notes: '+constr_notes
             if constr_status == statuses[3]:
-                s3+= unit + "\n"
+                s3+= u + "\n"
+                s3+= u + ' Notes: ' + constr_notes
             if constr_status == statuses[4]:
-                s4+= unit + "\n"
+                NoPermit_L.append(u)
             if constr_status == statuses[5]:
-                s5+= unit + "\n"
+                NoStatus_L.append(u)
+
+        print(NoPermit_L)
+        print(NoStatus_L)
+        for i in NoPermit_L:
+            print(NoPermit_L.index(i))
+            print(len(NoPermit_L)-1)
+            if NoPermit_L.index(i) != len(NoPermit_L)-1:
+                s4 += i + ', '
+            else:
+                s4+= i
+        for i in NoStatus_L:
+            if i!= len(NoPermit_L)-1:
+                s4 += i + ', '
+            else:
+                s5+= i
 
         final_s = """"""
         final_s += "Vacant Land - Undecided \n-  -  -  -  -  -  -  -  -  -\n"+s0
