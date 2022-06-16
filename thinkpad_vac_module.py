@@ -3,6 +3,7 @@
 #(2) call function that executes constr_txt is at very end of script
 
 #to do next immediately:
+#for "vacant land - permit submitted": implemented a "when submitted" function
 #1 rework the google form 2 add new google columns into Constr_Gsheet
 # 3 tweak txt msg html stuff 4 write ezgmail function 5 start updating the list baby
 
@@ -354,13 +355,18 @@ class vacancy_csv(object):
         for i in sheet:
             Unit = i[1] + " " + i[2]
             if i[0] != '' and Unit in self.sorted_dic['Under Construction']:
-                self.sorted_dic['Under Construction'][Unit].constr_status = i[3]
-                self.sorted_dic['Under Construction'][Unit].lotlength = i[4]
-                self.sorted_dic['Under Construction'][Unit].lotwidth = i[5]
-                self.sorted_dic['Under Construction'][Unit].constr_notes = i[6]
-                self.sorted_dic['Under Construction'][Unit].serial = i[7]
-                self.sorted_dic['Under Construction'][Unit].decal = i[8]
-                self.sorted_dic['Under Construction'][Unit].whoworking = i[9]
+                UnitObj = self.sorted_dic['Under Construction'][Unit]
+                if UnitObj.changedalready == False:
+                    UnitObj.constr_status = i[3]
+                    UnitObj.lotlength = i[4]
+                    UnitObj.lotwidth = i[5]
+                    UnitObj.constr_notes = i[6]
+                    UnitObj.serial = i[7]
+                    UnitObj.permitnum = i[8]
+                    UnitObj.whoworking = i[9]
+                    UnitObj.coachdim = i[10]
+                    UnitObj.changedalready = True
+
         return None
 
     #return txt msg (string) for construction statuses only
@@ -381,30 +387,29 @@ class vacancy_csv(object):
         s4 = """"""
         s5 = """"""
         for unit in self.sorted_dic['Under Construction']:
-            prop = self.sorted_dic['Under Construction'][unit].complex
-            spacenum = self.sorted_dic['Under Construction'][unit].unit
-            constr_status = self.sorted_dic['Under Construction'][unit].constr_status
-            lotlength = str(self.sorted_dic['Under Construction'][unit].lotlength)
-            lotwidth = str(self.sorted_dic['Under Construction'][unit].lotwidth)
-            constr_notes = self.sorted_dic['Under Construction'][unit].constr_notes
-            serial = self.sorted_dic['Under Construction'][unit].serial
-            decal = self.sorted_dic['Under Construction'][unit].decal
-            whoworking = self.sorted_dic['Under Construction'][unit].whoworking
-            constr_nextsteps = self.sorted_dic['Under Construction'][unit].constr_nextsteps
+            UnitObj = self.sorted_dic['Under Construction'][unit]
+            prop = UnitObj.complex
+            spacenum = UnitObj.unit
+            constr_status = UnitObj.constr_status
+            lotlength = str(UnitObj.lotlength)
+            lotwidth = str(UnitObj.lotwidth)
+            constr_notes = UnitObj.constr_notes
+            serial = UnitObj.serial
+            permitnum = UnitObj.permitnum
+            whoworking = UnitObj.whoworking
+            coachdim = UnitObj.coachdim
+            constr_nextsteps = UnitObj.constr_nextsteps
 
             #abbreviate
             u = self.abbr_complex(prop)+' '+spacenum
             NoPermit_L = []
             NoStatus_L = []
             if constr_status == statuses[0]:
-                s0+= u+'- Lot Size: '+lotwidth+'x'+lotlength+' '+';'+'fits up to: WxL coach \n'
-                s0+= u + ' Notes: '+constr_notes
+                s0+= u+' - Lot:'+lotwidth+'x'+lotlength+' '+'//'+' Fits: WxL // '+constr_notes+"\n"
             if constr_status == statuses[1]:
-                s1+= u + ', Serial: '+serial+', Decal:'+decal+"\n"
-                s1+= u + ' Notes: '+constr_notes
+                s1+= u+' - Lot:'+lotwidth+'x'+lotlength+' '+'// C:'+coachdim+' // S: '+serial+'// P:'+permitnum+' // '+constr_notes+"\n"
             if constr_status == statuses[2]:
-                s2+= u+': '+whoworking+' working on it'+ "\n"
-                s2+= u + ' Notes: '+constr_notes
+                s2+= u+' // S: '+serial+'// P:'+permitnum+'// '+whoworking+' working on it'+ "\n"
             if constr_status == statuses[3]:
                 s3+= u + "\n"
                 s3+= u + ' Notes: ' + constr_notes
@@ -456,9 +461,13 @@ class Unit(object):
         self.lotwidth = 0
         self.constr_notes = ''
         self.serial = ''
-        self.decal = ''
+        self.permitnum = ''
         self.whoworking = ''
         self.constr_nextsteps = ''
+        #to ensure we are always taking the top line on the Gsheet, we have a boolean "changedalready"
+        #if changedalready is True, we don't take any subsequent lines with that same unit
+        self.changedalready = False
+        self.coachdim = ''
 
 def readtxtfile():
     #return dictionary of {'sid':x,'token':y,'from':z,'to':a}
@@ -523,6 +532,11 @@ def call_twilio():
 #just like call_twilio, we call ezgmail for the construction email to send to everyone
 def call_ezgmail():
     o1 = vacancy_csv()
+    # o1.Constr_Gsheet()
+    # print(o1.sorted_dic['Under Construction'])
+    # print(o1.sorted_dic['Under Construction']['Hitching Post 16'])
+    # print(o1.sorted_dic['Under Construction']['Hitching Post 16'].constr_status)
+    # print(o1.sorted_dic['Under Construction']['Hitching Post 16'].lotlength)
     print(o1.Constr_txtmsg())
     return None
 call_ezgmail()
