@@ -300,7 +300,9 @@ class vacancy_csv(object):
         string += liststring2 + "\n"
 
         string+= "\n"
-        string+= "This is an automated txt msg --> all managers. Pls update: https://forms.gle/ZJminE5umWn9E8YM6"
+        string+= "https://forms.gle/ZJminE5umWn9E8YM6"
+        string+= "\n"
+        string+= "Do Not Rent: https://tinyurl.com/345drb6w"
         self.printedmsg = self.printedmsg + string
 
         return None
