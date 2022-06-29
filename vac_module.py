@@ -8,7 +8,7 @@ import ezgmail, os, csv, ezsheets, glob
 from datetime import date, datetime
 from twilio.rest import Client
 from pathlib import Path
-os.chdir(r'C:\Users\19097\PycharmProjects\VacancyTextScript')
+os.chdir(r'C:\Users\Lenovo\PycharmProjects\Vacancy')
 
 class vacancy_csv(object):
 #returns Data set from AppFolio Vacancy (using def read_csv)
@@ -21,8 +21,12 @@ class vacancy_csv(object):
         self.vac_list = []
         self.properties = ['Holiday', 'Mt Vista', 'Westwind', 'Wilson Gardens', 'Crestview',\
                             'Hitching Post', 'SFH', 'Patrician','Wishing Well']
+        self.SFH = ['Chestnut','Elm','12398 4th','12993 2nd','Reedywoods','North Grove',\
+                'Massachusetts','Michigan','906 N 4th','Indian School','Cottonwood']
         self.dic = {'Holiday':{},'Mt Vista': {},'Westwind':{},'Wilson Gardens':{},\
-                    'Crestview':{},'Hitching Post':{},'SFH':{},'Patrician':{},'Wishing Well':{}}
+                    'Crestview':{},'Hitching Post':{},'SFH':{},'Patrician':{},'Wishing Well':{},
+                    'Chestnut':{}, 'Elm':{}, '12398 4th':{}, '12993 2nd':{}, 'Reedywoods':{}, 'North Grove':{}, \
+                   'Massachusetts':{}, 'Michigan':{}, '906 N 4th':{}, 'Indian School':{}, 'Cottonwood':{}}
         # self.statuslist = ['Trash Need To Be Cleaned Out','Undergoing Turnover',\
         #                    'Need Appliances','Need Cleaning','Rent Ready','Rented',\
         #                    'Under Construction', 'No Status']
@@ -43,7 +47,7 @@ class vacancy_csv(object):
     def scrapegmail(self):
         ezgmail.init()
         thread = ezgmail.search('Batcave located in vacancy')
-        thread[0].messages[0].downloadAllAttachments(downloadFolder=r'C:\Users\19097\PycharmProjects\VacancyTextScript')
+        thread[0].messages[0].downloadAllAttachments(downloadFolder=r'C:\Users\Lenovo\PycharmProjects\Vacancy')
         return None
     def read_csv(self):
         s1 = "unit_vacancy_detail-"
@@ -67,6 +71,16 @@ class vacancy_csv(object):
             # else:
             #     print('no characters detected')
         return True
+
+    def is_SFH(self,string):
+        #given a string, return whether it is one of our SFHs
+        SFH_list = ['Chestnut', 'Elm', '12398 4th', '12993 2nd', 'Reedywoods', 'North Grove', \
+       'Massachusetts', 'Michigan', '906 N 4th', 'Indian School', 'Cottonwood']
+        for i in SFH_list:
+            if i in string:
+                return True
+        return False
+
     def is_prop(self,string):
         #given a string, return whether it is one of our props
         for i in self.properties:
@@ -78,15 +92,22 @@ class vacancy_csv(object):
         for i in self.properties:
             if i in string:
                 return i
+        for x in self.SFH:
+            if x in string:
+                return x
+        return None
     def create_dic(self):
         for i in self.data:
             if len(i)>2:
                 unit = i[0]
                 prop = i[-1]
-                if self.is_unit(unit) and self.is_prop(prop):
+                if (self.is_unit(unit) and self.is_prop(prop)):
                     # print(unit,prop)
                     obj = Unit(self.which_prop(prop), unit)
                     self.dic[self.which_prop(prop)].update({unit:obj})
+                if self.is_SFH(unit):
+                    obj = Unit(self.which_prop(prop), 'House')
+                    self.dic[self.which_prop(prop)].update({'House': obj})
 
     def in_dic(self, complex, unit):
     #given complex & unit, return True if they can be found in dictionary
@@ -98,9 +119,14 @@ class vacancy_csv(object):
     def gsheets(self):
         #pull data from google sheets & update dictionary
         sheet = self.ss[0]
+        # print(str('starters'+str(self.is_SFH('Indian School House'))))
         for i in sheet:
-            complex = i[1]
-            unit = i[2]
+            if self.is_SFH(i[1]):
+                complex = i[1].replace(" House","")
+                unit = 'House'
+            else:
+                complex = i[1]
+                unit = i[2]
             if len(i[0])>0 and self.in_dic(complex,unit):
                 status = i[3]
                 askingrent = i[4]
@@ -190,8 +216,12 @@ class vacancy_csv(object):
         count = 0
         for i in self.updated_lines:
             count+=1
-            prop = self.abbr_complex(i[1])
-            space = i[2]
+            if self.is_SFH(self,i[1]):
+                prop = self.abbr_complex(i[1].replace(" House",""))
+                space = "House"
+            else:
+                prop = self.abbr_complex(i[1])
+                space = i[2]
             if count < len(self.updated_lines):
                 s+= prop + " "+ space + ", "
             else:
@@ -221,7 +251,10 @@ class vacancy_csv(object):
     #abbreviate name of complex for txt msg. takes in full name of unit & returns abbr unit name string
     def abbr_complex(self, complex):
         d = {'Holiday':'Hol', 'Mt Vista':'MtV', 'Westwind':'West', 'Wilson Gardens':'Wilson', 'Crestview':'Crest', \
-         'Hitching Post':'HP', 'SFH':'SFH', 'Patrician':'Pat','Wishing Well':'Wish'}
+         'Hitching Post':'HP', 'SFH':'SFH', 'Patrician':'Pat','Wishing Well':'Wish',\
+             'Chestnut': 'Chestnut', 'Elm': 'Elm', '12398 4th': '12398 4th', '12993 2nd': '12993 2nd', 'Reedywoods': 'Reedywd', 'North Grove': 'Grove', \
+             'Massachusetts': 'Massachu', 'Michigan': 'Mich', '906 N 4th': '906 N 4th', 'Indian School': 'Indian School', 'Cottonwood': 'Cottonwd'
+             }
         return d[complex]
     #abbreviate name of unit type from "2Bd 2 Ba"--> "(2/2)"
     def abbr_type(self,unittype):
@@ -309,7 +342,7 @@ class vacancy_csv(object):
 
     #delete all the old csv files pulled from appfolio
     def skimthefat(self):
-        path = r'C:\Users\19097\PycharmProjects\VacancyTextScript\*.csv'
+        path = r'C:\Users\Lenovo\PycharmProjects\Vacancy\*.csv'
 
         count = 0
         for fname in glob.glob(path):
@@ -417,8 +450,24 @@ def readtxtfile():
 # print(o1.sorted_dic)
 # print(o1.printedmsg)
 
-call_twilio()
+# call_twilio()
 # numberstomessage()
+o1 = vacancy_csv()
+print(o1.dic['Indian School']['House'].status)
+print(o1.sorted_dic)
+print(o1.printedmsg)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
