@@ -8,7 +8,7 @@ import ezgmail, os, csv, ezsheets, glob
 from datetime import date, datetime
 from twilio.rest import Client
 from pathlib import Path
-os.chdir(r'C:\Users\Lenovo\PycharmProjects\Vacancy')
+os.chdir(r'C:\Users\19097\PycharmProjects\VacancyTextScript')
 
 class vacancy_csv(object):
 #returns Data set from AppFolio Vacancy (using def read_csv)
@@ -21,12 +21,12 @@ class vacancy_csv(object):
         self.vac_list = []
         self.properties = ['Holiday', 'Mt Vista', 'Westwind', 'Wilson Gardens', 'Crestview',\
                             'Hitching Post', 'SFH', 'Patrician','Wishing Well']
-        self.SFH = ['Chestnut','Elm','12398 4th','12993 2nd','Reedywoods','North Grove',\
-                'Massachusetts','Michigan','906 N 4th','Indian School','Cottonwood']
+        self.SFH = ['Chestnut', 'Elm', '12398 4th', '12993 2nd', 'Reedywoods', 'North Grove', \
+                    'Massachusetts', 'Michigan', '906 N 4th', 'Indian School', 'Cottonwood']
         self.dic = {'Holiday':{},'Mt Vista': {},'Westwind':{},'Wilson Gardens':{},\
-                    'Crestview':{},'Hitching Post':{},'SFH':{},'Patrician':{},'Wishing Well':{},
-                    'Chestnut':{}, 'Elm':{}, '12398 4th':{}, '12993 2nd':{}, 'Reedywoods':{}, 'North Grove':{}, \
-                   'Massachusetts':{}, 'Michigan':{}, '906 N 4th':{}, 'Indian School':{}, 'Cottonwood':{}}
+                    'Crestview':{},'Hitching Post':{},'SFH':{},'Patrician':{},'Wishing Well':{},\
+                    'Chestnut': {}, 'Elm': {}, '12398 4th': {}, '12993 2nd': {}, 'Reedywoods': {}, 'North Grove': {}, \
+                    'Massachusetts': {}, 'Michigan': {}, '906 N 4th': {}, 'Indian School': {}, 'Cottonwood': {}}
         # self.statuslist = ['Trash Need To Be Cleaned Out','Undergoing Turnover',\
         #                    'Need Appliances','Need Cleaning','Rent Ready','Rented',\
         #                    'Under Construction', 'No Status']
@@ -47,7 +47,7 @@ class vacancy_csv(object):
     def scrapegmail(self):
         ezgmail.init()
         thread = ezgmail.search('Batcave located in vacancy')
-        thread[0].messages[0].downloadAllAttachments(downloadFolder=r'C:\Users\Lenovo\PycharmProjects\Vacancy')
+        thread[0].messages[0].downloadAllAttachments(downloadFolder=r'C:\Users\19097\PycharmProjects\VacancyTextScript')
         return None
     def read_csv(self):
         s1 = "unit_vacancy_detail-"
@@ -58,6 +58,17 @@ class vacancy_csv(object):
         reader = csv.reader(file)
         self.data = list(reader)
         return self.data
+
+
+    def is_SFH(self, string):
+        # given a string, return whether it is one of our SFHs
+        SFH_list = ['Chestnut', 'Elm', '12398 4th', '12993 2nd', 'Reedywoods', 'North Grove', \
+                    'Massachusetts', 'Michigan', '906 N 4th', 'Indian School', 'Cottonwood']
+        for i in SFH_list:
+            if i in string:
+                return True
+        return False
+
     def is_unit(self, string):
         # given a string, analyze whether it is a unit
         if len(string) > 4 or len(string) < 1:
@@ -71,16 +82,6 @@ class vacancy_csv(object):
             # else:
             #     print('no characters detected')
         return True
-
-    def is_SFH(self,string):
-        #given a string, return whether it is one of our SFHs
-        SFH_list = ['Chestnut', 'Elm', '12398 4th', '12993 2nd', 'Reedywoods', 'North Grove', \
-       'Massachusetts', 'Michigan', '906 N 4th', 'Indian School', 'Cottonwood']
-        for i in SFH_list:
-            if i in string:
-                return True
-        return False
-
     def is_prop(self,string):
         #given a string, return whether it is one of our props
         for i in self.properties:
@@ -101,7 +102,7 @@ class vacancy_csv(object):
             if len(i)>2:
                 unit = i[0]
                 prop = i[-1]
-                if (self.is_unit(unit) and self.is_prop(prop)):
+                if self.is_unit(unit) and self.is_prop(prop):
                     # print(unit,prop)
                     obj = Unit(self.which_prop(prop), unit)
                     self.dic[self.which_prop(prop)].update({unit:obj})
@@ -119,14 +120,14 @@ class vacancy_csv(object):
     def gsheets(self):
         #pull data from google sheets & update dictionary
         sheet = self.ss[0]
-        # print(str('starters'+str(self.is_SFH('Indian School House'))))
         for i in sheet:
             if self.is_SFH(i[1]):
-                complex = i[1].replace(" House","")
+                complex = i[1].replace(" House", "")
                 unit = 'House'
             else:
                 complex = i[1]
                 unit = i[2]
+
             if len(i[0])>0 and self.in_dic(complex,unit):
                 status = i[3]
                 askingrent = i[4]
@@ -216,8 +217,8 @@ class vacancy_csv(object):
         count = 0
         for i in self.updated_lines:
             count+=1
-            if self.is_SFH(self,i[1]):
-                prop = self.abbr_complex(i[1].replace(" House",""))
+            if self.is_SFH(i[1]):
+                prop = self.abbr_complex(i[1].replace(" House", ""))
                 space = "House"
             else:
                 prop = self.abbr_complex(i[1])
@@ -342,7 +343,7 @@ class vacancy_csv(object):
 
     #delete all the old csv files pulled from appfolio
     def skimthefat(self):
-        path = r'C:\Users\Lenovo\PycharmProjects\Vacancy\*.csv'
+        path = r'C:\Users\19097\PycharmProjects\VacancyTextScript\*.csv'
 
         count = 0
         for fname in glob.glob(path):
@@ -442,7 +443,6 @@ def readtxtfile():
     d = {'sid':sid,'token':token,'from':phone_from,'to':phone_to}
     return d
 
-
 #
 # o1 = vacancy_csv()
 # print(o1.printedmsg)
@@ -450,23 +450,7 @@ def readtxtfile():
 # print(o1.sorted_dic)
 # print(o1.printedmsg)
 
-# call_twilio()
-# numberstomessage()
-o1 = vacancy_csv()
-print(o1.dic['Indian School']['House'].status)
-print(o1.sorted_dic)
-print(o1.printedmsg)
-
-
-
-
-
-
-
-
-
-
-
+call_twilio()
 
 
 
