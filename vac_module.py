@@ -1,4 +1,4 @@
-#code up a construction txt msg
+
 #Make sure everything is uploaded onto the GDrive shared folder: 'link'
 #(1) Waiting for HCD Permit (2) Waiting for City Permit, (3) Waiting for HCD Insp (4) Waiting for City Insp (5) Passed (6) No Status
 #one unit can only belong to one category
@@ -390,6 +390,7 @@ def numberstomessage():
         'Richard':'+19516639308','Jeff':'+19092228209','Tony':'+16269991519','Hector':'+19094897033',
          'Charles':'+19095507143','Amanda':'+19094861526'
     }
+    # d = {'Victor':'+19098163161'}
     L = []
     for i in d:
         L.append(d[i])
