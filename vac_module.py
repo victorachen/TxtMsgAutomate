@@ -1,18 +1,23 @@
-
-#Make sure everything is uploaded onto the GDrive shared folder: 'link'
-#(1) Waiting for HCD Permit (2) Waiting for City Permit, (3) Waiting for HCD Insp (4) Waiting for City Insp (5) Passed (6) No Status
-#one unit can only belong to one category
+#work on Add_to_textmsg_body
 
 #communicate to managers: statuses can be changed
 import ezgmail, os, csv, ezsheets, glob
 from datetime import date, datetime
 from twilio.rest import Client
 from pathlib import Path
-os.chdir(r'C:\Users\19097\PycharmProjects\VacancyTextScript')
+os.chdir(r'C:\Users\Lenovo\PycharmProjects\Vacancy')
+
+#Aug 6th: 2022 -- we want to add functionality where: if there is a new vacant unit in AppFolio, the code sends out a text msg alert to everyone
+#we are going to try to do as much of this outside the class as possible (waay too messy in there)
+def Add_To_Textmsg_Body():
+    #first: compare today's csv with yesterday's csv
+    
+    return """adding this to the beginning\n"""
 
 class vacancy_csv(object):
 #returns Data set from AppFolio Vacancy (using def read_csv)
     def __init__(self):
+        self.beginning = Add_To_Textmsg_Body()
         self.printedmsg = ""
         #to send or not to send, that is the question
         self.tosendornot = False
@@ -21,12 +26,12 @@ class vacancy_csv(object):
         self.vac_list = []
         self.properties = ['Holiday', 'Mt Vista', 'Westwind', 'Wilson Gardens', 'Crestview',\
                             'Hitching Post', 'SFH', 'Patrician','Wishing Well']
-        self.SFH = ['Chestnut', 'Elm', '12398 4th', '12993 2nd', 'Reedywoods', 'North Grove', \
-                    'Massachusetts', 'Michigan', '906 N 4th', 'Indian School', 'Cottonwood']
+        self.SFH = ['Chestnut','Elm','12398 4th','12993 2nd','Reedywoods','North Grove',\
+                'Massachusetts','Michigan','906 N 4th','Indian School','Cottonwood']
         self.dic = {'Holiday':{},'Mt Vista': {},'Westwind':{},'Wilson Gardens':{},\
-                    'Crestview':{},'Hitching Post':{},'SFH':{},'Patrician':{},'Wishing Well':{},\
-                    'Chestnut': {}, 'Elm': {}, '12398 4th': {}, '12993 2nd': {}, 'Reedywoods': {}, 'North Grove': {}, \
-                    'Massachusetts': {}, 'Michigan': {}, '906 N 4th': {}, 'Indian School': {}, 'Cottonwood': {}}
+                    'Crestview':{},'Hitching Post':{},'SFH':{},'Patrician':{},'Wishing Well':{},
+                    'Chestnut':{}, 'Elm':{}, '12398 4th':{}, '12993 2nd':{}, 'Reedywoods':{}, 'North Grove':{}, \
+                   'Massachusetts':{}, 'Michigan':{}, '906 N 4th':{}, 'Indian School':{}, 'Cottonwood':{}}
         # self.statuslist = ['Trash Need To Be Cleaned Out','Undergoing Turnover',\
         #                    'Need Appliances','Need Cleaning','Rent Ready','Rented',\
         #                    'Under Construction', 'No Status']
@@ -47,7 +52,7 @@ class vacancy_csv(object):
     def scrapegmail(self):
         ezgmail.init()
         thread = ezgmail.search('Batcave located in vacancy')
-        thread[0].messages[0].downloadAllAttachments(downloadFolder=r'C:\Users\19097\PycharmProjects\VacancyTextScript')
+        thread[0].messages[0].downloadAllAttachments(downloadFolder=r'C:\Users\Lenovo\PycharmProjects\Vacancy')
         return None
     def read_csv(self):
         s1 = "unit_vacancy_detail-"
@@ -58,17 +63,6 @@ class vacancy_csv(object):
         reader = csv.reader(file)
         self.data = list(reader)
         return self.data
-
-
-    def is_SFH(self, string):
-        # given a string, return whether it is one of our SFHs
-        SFH_list = ['Chestnut', 'Elm', '12398 4th', '12993 2nd', 'Reedywoods', 'North Grove', \
-                    'Massachusetts', 'Michigan', '906 N 4th', 'Indian School', 'Cottonwood']
-        for i in SFH_list:
-            if i in string:
-                return True
-        return False
-
     def is_unit(self, string):
         # given a string, analyze whether it is a unit
         if len(string) > 4 or len(string) < 1:
@@ -82,6 +76,16 @@ class vacancy_csv(object):
             # else:
             #     print('no characters detected')
         return True
+
+    def is_SFH(self,string):
+        #given a string, return whether it is one of our SFHs
+        SFH_list = ['Chestnut', 'Elm', '12398 4th', '12993 2nd', 'Reedywoods', 'North Grove', \
+       'Massachusetts', 'Michigan', '906 N 4th', 'Indian School', 'Cottonwood']
+        for i in SFH_list:
+            if i in string:
+                return True
+        return False
+
     def is_prop(self,string):
         #given a string, return whether it is one of our props
         for i in self.properties:
@@ -102,7 +106,7 @@ class vacancy_csv(object):
             if len(i)>2:
                 unit = i[0]
                 prop = i[-1]
-                if self.is_unit(unit) and self.is_prop(prop):
+                if (self.is_unit(unit) and self.is_prop(prop)):
                     # print(unit,prop)
                     obj = Unit(self.which_prop(prop), unit)
                     self.dic[self.which_prop(prop)].update({unit:obj})
@@ -117,17 +121,36 @@ class vacancy_csv(object):
         except:
             return False
         return True
+    def gtesting(self):
+        from datetime import datetime
+        sheet = self.ss[0]
+        print(sheet['A1'])
+        print(sheet['A2'])
+        print(type(sheet['A2']))
+        print(datetime.now())
+
+        dates = {"date": "2020-08-24T21:15:00+00:00"}
+
+        date = dates.get("date")
+        day = datetime.strptime(date, "%Y-%m-%dT%H:%M:%S+00:00")
+        gsheetdate = '6/3/2022 9:25:47'
+        gsheetday = datetime.strptime(gsheetdate,"%m/%d/%Y %H:%M:%S")
+        gsheetdate2 = '6/7/2022 12:05:02'
+        gsheetday2 = datetime.strptime(gsheetdate2, "%m/%d/%Y %H:%M:%S")
+        print(gsheetday)
+        print(gsheetday2)
+        print(datetime.now()<gsheetday2)
     def gsheets(self):
         #pull data from google sheets & update dictionary
         sheet = self.ss[0]
+        # print(str('starters'+str(self.is_SFH('Indian School House'))))
         for i in sheet:
             if self.is_SFH(i[1]):
-                complex = i[1].replace(" House", "")
+                complex = i[1].replace(" House","")
                 unit = 'House'
             else:
                 complex = i[1]
                 unit = i[2]
-
             if len(i[0])>0 and self.in_dic(complex,unit):
                 status = i[3]
                 askingrent = i[4]
@@ -218,7 +241,7 @@ class vacancy_csv(object):
         for i in self.updated_lines:
             count+=1
             if self.is_SFH(i[1]):
-                prop = self.abbr_complex(i[1].replace(" House", ""))
+                prop = self.abbr_complex(i[1].replace(" House",""))
                 space = "House"
             else:
                 prop = self.abbr_complex(i[1])
@@ -337,13 +360,13 @@ class vacancy_csv(object):
         string+= "https://forms.gle/ZJminE5umWn9E8YM6"
         string+= "\n"
         string+= "Do Not Rent: https://tinyurl.com/345drb6w"
-        self.printedmsg = self.printedmsg + string
+        self.printedmsg = self.beginning + self.printedmsg + string
 
         return None
 
     #delete all the old csv files pulled from appfolio
     def skimthefat(self):
-        path = r'C:\Users\19097\PycharmProjects\VacancyTextScript\*.csv'
+        path = r'C:\Users\Lenovo\PycharmProjects\Vacancy\*.csv'
 
         count = 0
         for fname in glob.glob(path):
@@ -386,11 +409,11 @@ class Unit(object):
 
 #return list of numbers to message
 def numberstomessage():
-    d = {'Victor':'+19098163161','Jian':'+19092101491','Karla':'+19097677208','Brian':'+19097140840',
-        'Richard':'+19516639308','Jeff':'+19092228209','Tony':'+16269991519','Hector':'+19094897033',
-         'Charles':'+19095507143','Amanda':'+19094861526'
-    }
-    # d = {'Victor':'+19098163161'}
+    # d = {'Victor':'+19098163161','Jian':'+19092101491','Karla':'+19097677208','Brian':'+19097140840',
+    #     'Richard':'+19516639308','Jeff':'+19092228209','Tony':'+16269991519','Hector':'+19094897033',
+    #      'Charles':'+19095507143','Amanda':'+19094861526'
+    # }
+    d = {'Victor':'+19098163161'}
     L = []
     for i in d:
         L.append(d[i])
@@ -444,6 +467,7 @@ def readtxtfile():
     d = {'sid':sid,'token':token,'from':phone_from,'to':phone_to}
     return d
 
+
 #
 # o1 = vacancy_csv()
 # print(o1.printedmsg)
@@ -451,7 +475,23 @@ def readtxtfile():
 # print(o1.sorted_dic)
 # print(o1.printedmsg)
 
-call_twilio()
+# call_twilio()
+# numberstomessage()
+o1 = vacancy_csv()
+# print(o1.dic['Indian School']['House'].status)
+# print(o1.sorted_dic)
+# print(o1.printedmsg)
+print(o1.gtesting())
+print(o1.printedmsg)
+print(o1.dic)
+print(o1.data)
+
+
+
+
+
+
+
 
 
 
