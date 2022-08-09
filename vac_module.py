@@ -1,17 +1,34 @@
-#work on Add_to_textmsg_body
+#work on Add_to_textmsg_body (work on pulling the right csv file from gmail)
 
 #communicate to managers: statuses can be changed
 import ezgmail, os, csv, ezsheets, glob
-from datetime import date, datetime
+from datetime import date, datetime,timedelta
 from twilio.rest import Client
 from pathlib import Path
 os.chdir(r'C:\Users\Lenovo\PycharmProjects\Vacancy')
 
 #Aug 6th: 2022 -- we want to add functionality where: if there is a new vacant unit in AppFolio, the code sends out a text msg alert to everyone
-#we are going to try to do as much of this outside the class as possible (waay too messy in there)
+#we are going to try to do as much of this outside the class as possible (waay too messy inside the class)
 def Add_To_Textmsg_Body():
-    #first: compare today's csv with yesterday's csv
-    
+    #first: pull both csv's and store data in lists
+    today = date.today()
+    yesterday = today - timedelta(days=1)
+
+    # THIS IS NOT COMPLETE, KEEP WORKING ON THIS
+    #helper function: given a date, scrape through gmail to find the corresponding csv file
+    #--> and then spit that csv file data into a list (returned)
+    def extract_csv_data(date):
+        firsthalf = "unit_vacancy_detail-"
+        secondhalf = str(date).replace('-', '') + '.csv'
+        filename = firsthalf + secondhalf
+        file = open(filename)
+        reader = csv.reader(file)
+        data = list(reader)
+        return data
+
+    extract_csv_data(today)
+    extract_csv_data(yesterday)
+    # second: compare today's csv with yesterday's csv
     return """adding this to the beginning\n"""
 
 class vacancy_csv(object):
