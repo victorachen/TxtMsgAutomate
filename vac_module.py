@@ -1,7 +1,7 @@
-#work on Add_to_textmsg_body (work on pulling the right csv file from gmail)
+#work on line 57: work on comparing the lists now! (takes some brain power) 
 
 #communicate to managers: statuses can be changed
-import ezgmail, os, csv, ezsheets, glob
+import ezgmail, os, csv, ezsheets, glob, shutil
 from datetime import date, datetime,timedelta
 from twilio.rest import Client
 from pathlib import Path
@@ -13,23 +13,51 @@ def Add_To_Textmsg_Body():
     #first: pull both csv's and store data in lists
     today = date.today()
     yesterday = today - timedelta(days=1)
+    path = r'C:\Users\Lenovo\PycharmProjects\Vacancy\module_update'
+
+    def download_csvs():
+        ezgmail.init()
+        thread = ezgmail.search('Batcave located in vacancy')
+        #(1) Download the most recent vacancy csv
+        thread[0].messages[0].downloadAllAttachments(downloadFolder=path)
+        #(2) Download yesterday's csv
+        thread[1].messages[0].downloadAllAttachments(downloadFolder=path)
+
+    #after it's all said and done, clear everything from the "module_update" folder
+    def clear_downloadfolder():
+        folder = path
+        for filename in os.listdir(folder):
+            file_path = os.path.join(folder, filename)
+            try:
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                print('Failed to delete %s. Reason: %s' % (file_path, e))
 
     # THIS IS NOT COMPLETE, KEEP WORKING ON THIS
     #helper function: given a date, scrape through gmail to find the corresponding csv file
     #--> and then spit that csv file data into a list (returned)
     def extract_csv_data(date):
-        firsthalf = "unit_vacancy_detail-"
+        firsthalf = r'C:\Users\Lenovo\PycharmProjects\Vacancy\module_update\unit_vacancy_detail-'
         secondhalf = str(date).replace('-', '') + '.csv'
         filename = firsthalf + secondhalf
         file = open(filename)
         reader = csv.reader(file)
         data = list(reader)
+        print(data)
         return data
 
-    extract_csv_data(today)
-    extract_csv_data(yesterday)
-    # second: compare today's csv with yesterday's csv
+    download_csvs()
+    todays_list = extract_csv_data(today)
+    yest_list = extract_csv_data(yesterday)
+    clear_downloadfolder()
+
+    # second: compare today's csv with yesterday's csv (compare the two lists!)
+
     return """adding this to the beginning\n"""
+Add_To_Textmsg_Body()
 
 class vacancy_csv(object):
 #returns Data set from AppFolio Vacancy (using def read_csv)
@@ -494,14 +522,14 @@ def readtxtfile():
 
 # call_twilio()
 # numberstomessage()
-o1 = vacancy_csv()
+# o1 = vacancy_csv()
 # print(o1.dic['Indian School']['House'].status)
 # print(o1.sorted_dic)
 # print(o1.printedmsg)
-print(o1.gtesting())
-print(o1.printedmsg)
-print(o1.dic)
-print(o1.data)
+# print(o1.gtesting())
+# print(o1.printedmsg)
+# print(o1.dic)
+# print(o1.data)
 
 
 
