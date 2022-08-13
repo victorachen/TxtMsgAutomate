@@ -1,4 +1,5 @@
-#work on line 57: work on comparing the lists now! (takes some brain power) 
+#On Yucaipa Computer: Insert line 565 in Call_Twilio (in addition to add_to_textmsg_body())
+#On call_twilio function, don't forget to put manager's numbers back
 
 #communicate to managers: statuses can be changed
 import ezgmail, os, csv, ezsheets, glob, shutil
@@ -36,7 +37,6 @@ def Add_To_Textmsg_Body():
             except Exception as e:
                 print('Failed to delete %s. Reason: %s' % (file_path, e))
 
-    # THIS IS NOT COMPLETE, KEEP WORKING ON THIS
     #helper function: given a date, scrape through gmail to find the corresponding csv file
     #--> and then spit that csv file data into a list (returned)
     def extract_csv_data(date):
@@ -46,18 +46,112 @@ def Add_To_Textmsg_Body():
         file = open(filename)
         reader = csv.reader(file)
         data = list(reader)
-        print(data)
+        # print(data)
         return data
 
-    download_csvs()
-    todays_list = extract_csv_data(today)
-    yest_list = extract_csv_data(yesterday)
-    clear_downloadfolder()
-
     # second: compare today's csv with yesterday's csv (compare the two lists!)
+    #1a: determine if a row in the csv is a unit or not (done)
+    #2a: store all units in some kind of a list (done)
+    #3a: compare lists from one csv to the next one (done)
 
-    return """adding this to the beginning\n"""
-Add_To_Textmsg_Body()
+    all_properties = ['Holiday', 'Mt Vista', 'Westwind', 'Wilson Gardens', 'Crestview', \
+                  'Hitching Post', 'SFH', 'Patrician', 'Wishing Well']
+    SFH = ['Chestnut', 'Elm', '12398 4th', '12993 2nd', 'Reedywoods', 'North Grove', \
+           'Massachusetts', 'Michigan', '906 N 4th', 'Indian School', 'Cottonwood']
+
+    #1a: given a list(row in excel), return whether that excel row is a unit
+    def isunit(list):
+        if len(list)< 2:
+            return False
+        #helper function: given a string(or int?), determine if that it is a unit num. for ex, "98A" or "94" would be a unit, but "General Rental Application" would not be
+        def is_space(string):
+            def has_numbers(inputString):
+                return any(char.isdigit() for char in inputString)
+            if len(string)<5 and has_numbers(string):
+                return True
+            return False
+
+        space_num = list[0]
+        prop_address = list[-1]
+        for i in all_properties:
+            if i in prop_address and is_space(space_num):
+                return True
+        #sadly, SFH do not have space numbers, so gotta find some other way to do this...
+        for i in SFH:
+            if i in prop_address and len(list)>7:
+                return True
+        return False
+
+    #2a: todays_csvoutput --> strips --> todays_vacunits
+    #loops thru csv file (list of lists [each row being a list]) and puts vacant units in one, clean list
+    def extract_vacunits(csvoutput):
+
+        #Helper: given a long address list "Hitching Post - 34642 Yucaipa Blvd Yucaipa, CA 92399", abbreviate to "HP"
+        def abbr_propname(longpropname):
+            d = {'Holiday': 'Hol', 'Mt Vista': 'MtV', 'Westwind': 'West', 'Wilson Gardens': 'Wilson', 'Crestview': 'Crest', \
+                 'Hitching Post': 'HP', 'SFH': 'SFH', 'Patrician': 'Pat', 'Wishing Well': 'Wish', \
+                 'Chestnut': 'Chestnut', 'Elm': 'Elm', '12398 4th': '12398 4th', '12993 2nd': '12993 2nd',\
+                 'Reedywoods': 'Reedywd', 'North Grove': 'Grove', \
+                 'Massachusetts': 'Massachu', 'Michigan': 'Mich', '906 N 4th': '906 N 4th',\
+                 'Indian School': 'Indian School', 'Cottonwood': 'Cottonwd'
+                 }
+            for i in d:
+                if i in longpropname:
+                    return d[i]
+            return 'Uh Oh, No Matches!'
+        #Helper: given a long address (ex--"910 E Indian School Lane - 910 E Indian School Ln Banning, CA 92220"), return whether it is a SFH
+        def is_SFH(longpropname):
+            for i in SFH:
+                if i in longpropname:
+                    return True
+            return False
+
+        vacant_list = []
+        for row in csvoutput:
+            if isunit(row):
+                #if it is a SFH, there is no space num (obviously! duh!)
+                if is_SFH(row[-1]):
+                    space_num = ''
+                else:
+                    space_num = row[0]
+                prop_name = abbr_propname(row[-1])
+                combined = prop_name + ' '+ space_num
+                vacant_list.append(combined)
+        return vacant_list
+
+    #3A: compares today's and yesterday's vacant lists; returns third list of new vacants (in string format)
+    def compare(today_lst,yest_lst):
+        new_vacants = []
+        string = ''
+        for unit in today_lst:
+            if unit not in yest_lst:
+                new_vacants.append(unit)
+        #cool, now let's put everything in a string
+        for i in new_vacants:
+            if new_vacants.index(i)==0:
+                string = i + string
+            else:
+                string = i + ', '+string
+        return string
+
+    #3B: if there are not any new vacants, there is nothing to add to the text body!
+    def are_there_any_new_vacants(today_lst,yest_lst):
+        if compare(today_lst,yest_lst) == '':
+            return False
+        return True
+
+    # download_csvs()
+    todays_csvoutput = extract_csv_data(today)
+    yest_csvoutput = extract_csv_data(yesterday)
+    todays_vacunits = extract_vacunits(todays_csvoutput)
+    yest_vacunits = extract_vacunits(yest_csvoutput)
+    # clear_downloadfolder()
+    if are_there_any_new_vacants(todays_vacunits,yest_vacunits):
+        text_PtA = "Alert! New Vacancy (Plz Update): "
+        text_PtB = compare(todays_vacunits,yest_vacunits)
+        return text_PtA + text_PtB + """\n"""
+    #if no new vacant units, append empty string to self.beginning
+    return ""
 
 class vacancy_csv(object):
 #returns Data set from AppFolio Vacancy (using def read_csv)
@@ -465,6 +559,14 @@ def numberstomessage():
     return L
 
 def call_twilio():
+
+    #Helper: if there is a new vacant unit (determined by our fancy new function "Addtotextmsgbody"),
+    #We want to over-ride everything and send the txt msg anyway
+    def are_there_new_vacs():
+        if Add_To_Textmsg_Body() != "":
+            return True
+        return False
+
     #call twilio api to print
     L = numberstomessage()
     account_sid = readtxtfile()['sid']
@@ -476,7 +578,7 @@ def call_twilio():
     numbers_to_message = L
     print(L)
 
-    if o1.tosendornot:
+    if o1.tosendornot or are_there_new_vacs():
         for number in numbers_to_message:
             client.messages.create(
                 body = text,
@@ -520,7 +622,7 @@ def readtxtfile():
 # print(o1.sorted_dic)
 # print(o1.printedmsg)
 
-# call_twilio()
+call_twilio()
 # numberstomessage()
 # o1 = vacancy_csv()
 # print(o1.dic['Indian School']['House'].status)
