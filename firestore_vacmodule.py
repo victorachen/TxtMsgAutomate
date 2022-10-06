@@ -483,20 +483,22 @@ class vacancy_csv(object):
             db.collection('Vacancy').document('just_rented').update({key: value})
 
         #Under Construction
-        All_Constr_Units = ""
         for i in self.sorted_dic['Under Construction']:
             complex = self.abbr_complex(self.sorted_dic['Under Construction'][i].complex)
             unit = self.sorted_dic['Under Construction'][i].unit
-            All_Constr_Units+= complex + "_"+ unit+","
-        db.collection('Vacancy').document('under_construction').update({'units': All_Constr_Units})
+
+            key = complex + "_"+ unit
+            value = ""
+            db.collection('Vacancy').document('under_construction').update({key: value})
 
         #No Status
-        No_Status_Units = ""
         for i in self.sorted_dic['No Status (Please Update)']:
             complex = self.abbr_complex(self.sorted_dic['No Status (Please Update)'][i].complex)
             unit = self.sorted_dic['No Status (Please Update)'][i].unit
-            no_status_units+= complex + "_"+ unit+","
-        db.collection('Vacancy').document('no_status').update({'units': No_Status_Units})
+
+            key = complex + "_" + unit
+            value = ""
+            db.collection('Vacancy').document('no_status').update({key: value})
 
     def txtmsg(self):
         #create print statement for mass text distribution
