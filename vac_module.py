@@ -1,4 +1,4 @@
-
+#As of Jan 19 2023
 #communicate to managers: statuses can be changed
 import ezgmail, os, csv, ezsheets, glob,shutil
 from datetime import date, datetime,timedelta
@@ -197,6 +197,7 @@ class vacancy_csv(object):
         self.compare()
         #add the sorted dic into self.printed msg
         self.txtmsg()
+        self.firestore()
         self.skimthefat()
     def scrapegmail(self):
         ezgmail.init()
@@ -420,6 +421,78 @@ class vacancy_csv(object):
         else:
             s2 = "("+L[0]+"/"+L[1]+")"
         return s2
+
+        # Oct 5th firestore code baby!
+
+
+    def firestore(self):
+        import firebase_admin
+        from firebase_admin import credentials
+        from firebase_admin import firestore
+        cred = credentials.Certificate(r'C:\Users\19097\PycharmProjects\VacancyTextScript\serviceaccountkey.json')
+        firebase_admin.initialize_app(cred)
+        db = firestore.client()
+
+        # first: delete all existing documents (Hierarchy: collection ('vacancy') --> document ('rent_ready') --> fields )
+        L = ['just_rented', 'no_status', 'recently_updated', 'rent_ready', 'under_construction', 'unit_turns']
+        for i in L:
+            db.collection('Vacancy').document(i).delete()
+        # second: create new documents
+        for i in L:
+            db.collection('Vacancy').document(i).set({'type': i})
+        # third: fill up documents with txt msg data
+
+        # Rent Ready
+        for i in self.sorted_dic['Rent Ready']:
+            complex = self.sorted_dic['Rent Ready'][i].complex
+            unit = self.sorted_dic['Rent Ready'][i].unit
+            askingrent = self.sorted_dic['Rent Ready'][i].askingrent
+            unittype = self.sorted_dic['Rent Ready'][i].unittype
+
+            key = self.abbr_complex(complex) + "_" + unit
+            value = self.abbr_type(unittype) + "-$" + askingrent
+
+            db.collection('Vacancy').document('rent_ready').update({key: value})
+
+        # Unit Turns
+        for i in self.sorted_dic['Unit Still Needs Work']:
+            complex = self.sorted_dic['Unit Still Needs Work'][i].complex
+            unit = self.sorted_dic['Unit Still Needs Work'][i].unit
+            unittype = self.sorted_dic['Unit Still Needs Work'][i].unittype
+
+            key = self.abbr_complex(complex) + "_" + unit
+            value = self.abbr_type(unittype)
+            db.collection('Vacancy').document('unit_turns').update({key: value})
+
+        # Just Rented
+        for i in self.sorted_dic['Rented']:
+            complex = self.sorted_dic['Rented'][i].complex
+            unit = self.sorted_dic['Rented'][i].unit
+            actualrent = self.sorted_dic['Rented'][i].actualrent
+            unittype = self.sorted_dic['Rented'][i].unittype
+
+            key = self.abbr_complex(complex) + "_" + unit
+            value = self.abbr_type(unittype) + "-$" + actualrent
+
+            db.collection('Vacancy').document('just_rented').update({key: value})
+
+        # Under Construction
+        for i in self.sorted_dic['Under Construction']:
+            complex = self.abbr_complex(self.sorted_dic['Under Construction'][i].complex)
+            unit = self.sorted_dic['Under Construction'][i].unit
+
+            key = complex + "_" + unit
+            value = ""
+            db.collection('Vacancy').document('under_construction').update({key: value})
+
+        # No Status
+        for i in self.sorted_dic['No Status (Please Update)']:
+            complex = self.abbr_complex(self.sorted_dic['No Status (Please Update)'][i].complex)
+            unit = self.sorted_dic['No Status (Please Update)'][i].unit
+
+            key = complex + "_" + unit
+            value = ""
+            db.collection('Vacancy').document('no_status').update({key: value})
 
     def txtmsg(self):
         #create print statement for mass text distribution
