@@ -4,7 +4,7 @@ import ezgmail, os, csv, ezsheets, glob,shutil
 from datetime import date, datetime,timedelta
 from twilio.rest import Client
 from pathlib import Path
-os.chdir(r'C:\Users\19097\PycharmProjects\VacancyTextScript')
+os.chdir(r'C:\Users\Lenovo\PycharmProjects\Vacancy')
 
 #Aug 6th: 2022 -- we want to add functionality where: if there is a new vacant unit in AppFolio, the code sends out a text msg alert to everyone
 #we are going to try to do as much of this outside the class as possible (waay too messy inside the class)
@@ -12,7 +12,7 @@ def Add_To_Textmsg_Body():
     #first: pull both csv's and store data in lists
     today = date.today()
     yesterday = today - timedelta(days=1)
-    path = r'C:\Users\19097\PycharmProjects\VacancyTextScript\module_update'
+    path = r'C:\Users\Lenovo\PycharmProjects\Vacancy\module_update'
     def download_csvs():
         ezgmail.init()
         thread = ezgmail.search('Batcave located in vacancy')
@@ -36,7 +36,7 @@ def Add_To_Textmsg_Body():
  #helper function: given a date, scrape through gmail to find the corresponding csv file
     #--> and then spit that csv file data into a list (returned)
     def extract_csv_data(date):
-        firsthalf = r'C:\Users\19097\PycharmProjects\VacancyTextScript\module_update\unit_vacancy_detail-'
+        firsthalf = r'C:\Users\Lenovo\PycharmProjects\Vacancy\module_update\unit_vacancy_detail-'
         secondhalf = str(date).replace('-', '') + '.csv'
         filename = firsthalf + secondhalf
         file = open(filename)
@@ -50,7 +50,7 @@ def Add_To_Textmsg_Body():
         # 2a: store all units in some kind of a list (done)
         # 3a: compare lists from one csv to the next one (done)
 
-    all_properties = ['Holiday', 'Mt Vista', 'Westwind', 'Wilson Gardens', 'Crestview', \
+    all_properties = ['Holiday', 'Mt Vista', 'Westwind', 'Crestview', \
                           'Hitching Post', 'SFH', 'Patrician', 'Wishing Well']
 
     SFH = ['Chestnut', 'Elm', '12398 4th', '12993 2nd', 'Reedywoods', 'North Grove', \
@@ -87,7 +87,7 @@ def Add_To_Textmsg_Body():
 
         #Helper: given a long address list "Hitching Post - 34642 Yucaipa Blvd Yucaipa, CA 92399", abbreviate to "HP"
         def abbr_propname(longpropname):
-            d = {'Holiday': 'Hol', 'Mt Vista': 'MtV', 'Westwind': 'West', 'Wilson Gardens': 'Wilson', 'Crestview': 'Crest', \
+            d = {'Holiday': 'Hol', 'Mt Vista': 'MtV', 'Westwind': 'West', 'Crestview': 'Crest', \
                  'Hitching Post': 'HP', 'SFH': 'SFH', 'Patrician': 'Pat', 'Wishing Well': 'Wish', \
                  'Chestnut': 'Chestnut', 'Elm': 'Elm', '12398 4th': '12398 4th', '12993 2nd': '12993 2nd',\
                  'Reedywoods': 'Reedywd', 'North Grove': 'Grove', \
@@ -173,11 +173,11 @@ class vacancy_csv(object):
         self.data = []
         self.d = {}
         self.vac_list = []
-        self.properties = ['Holiday', 'Mt Vista', 'Westwind', 'Wilson Gardens', 'Crestview',\
+        self.properties = ['Holiday', 'Mt Vista', 'Westwind', 'Crestview',\
                             'Hitching Post', 'SFH', 'Patrician','Wishing Well']
         self.SFH = ['Chestnut', 'Elm', '12398 4th', '12993 2nd', 'Reedywoods', 'North Grove', \
                     'Massachusetts', 'Michigan', '906 N 4th', 'Indian School', 'Cottonwood']
-        self.dic = {'Holiday':{},'Mt Vista': {},'Westwind':{},'Wilson Gardens':{},\
+        self.dic = {'Holiday':{},'Mt Vista': {},'Westwind':{},\
                     'Crestview':{},'Hitching Post':{},'SFH':{},'Patrician':{},'Wishing Well':{},\
                     'Chestnut': {}, 'Elm': {}, '12398 4th': {}, '12993 2nd': {}, 'Reedywoods': {}, 'North Grove': {}, \
                     'Massachusetts': {}, 'Michigan': {}, '906 N 4th': {}, 'Indian School': {}, 'Cottonwood': {}}
@@ -197,12 +197,12 @@ class vacancy_csv(object):
         self.compare()
         #add the sorted dic into self.printed msg
         self.txtmsg()
-        self.firestore()
+        # self.firestore()
         self.skimthefat()
     def scrapegmail(self):
         ezgmail.init()
         thread = ezgmail.search('Batcave located in vacancy')
-        thread[0].messages[0].downloadAllAttachments(downloadFolder=r'C:\Users\19097\PycharmProjects\VacancyTextScript')
+        thread[0].messages[0].downloadAllAttachments(downloadFolder=r'C:\Users\Lenovo\PycharmProjects\Vacancy')
         return None
     def read_csv(self):
         s1 = "unit_vacancy_detail-"
@@ -406,7 +406,7 @@ class vacancy_csv(object):
     #helper function for method below
     #abbreviate name of complex for txt msg. takes in full name of unit & returns abbr unit name string
     def abbr_complex(self, complex):
-        d = {'Holiday':'Hol', 'Mt Vista':'MtV', 'Westwind':'West', 'Wilson Gardens':'Wilson', 'Crestview':'Crest', \
+        d = {'Holiday':'Hol', 'Mt Vista':'MtV', 'Westwind':'West', 'Crestview':'Crest', \
          'Hitching Post':'HP', 'SFH':'SFH', 'Patrician':'Pat','Wishing Well':'Wish',\
              'Chestnut': 'Chestnut', 'Elm': 'Elm', '12398 4th': '12398 4th', '12993 2nd': '12993 2nd', 'Reedywoods': 'Reedywd', 'North Grove': 'Grove', \
              'Massachusetts': 'Massachu', 'Michigan': 'Mich', '906 N 4th': '906 N 4th', 'Indian School': 'Indian School', 'Cottonwood': 'Cottonwd'
@@ -425,74 +425,74 @@ class vacancy_csv(object):
         # Oct 5th firestore code baby!
 
 
-    def firestore(self):
-        import firebase_admin
-        from firebase_admin import credentials
-        from firebase_admin import firestore
-        cred = credentials.Certificate(r'C:\Users\19097\PycharmProjects\VacancyTextScript\serviceaccountkey.json')
-        firebase_admin.initialize_app(cred)
-        db = firestore.client()
-
-        # first: delete all existing documents (Hierarchy: collection ('vacancy') --> document ('rent_ready') --> fields )
-        L = ['just_rented', 'no_status', 'recently_updated', 'rent_ready', 'under_construction', 'unit_turns']
-        for i in L:
-            db.collection('Vacancy').document(i).delete()
-        # second: create new documents
-        for i in L:
-            db.collection('Vacancy').document(i).set({'type': i})
-        # third: fill up documents with txt msg data
-
-        # Rent Ready
-        for i in self.sorted_dic['Rent Ready']:
-            complex = self.sorted_dic['Rent Ready'][i].complex
-            unit = self.sorted_dic['Rent Ready'][i].unit
-            askingrent = self.sorted_dic['Rent Ready'][i].askingrent
-            unittype = self.sorted_dic['Rent Ready'][i].unittype
-
-            key = self.abbr_complex(complex) + "_" + unit
-            value = self.abbr_type(unittype) + "-$" + askingrent
-
-            db.collection('Vacancy').document('rent_ready').update({key: value})
-
-        # Unit Turns
-        for i in self.sorted_dic['Unit Still Needs Work']:
-            complex = self.sorted_dic['Unit Still Needs Work'][i].complex
-            unit = self.sorted_dic['Unit Still Needs Work'][i].unit
-            unittype = self.sorted_dic['Unit Still Needs Work'][i].unittype
-
-            key = self.abbr_complex(complex) + "_" + unit
-            value = self.abbr_type(unittype)
-            db.collection('Vacancy').document('unit_turns').update({key: value})
-
-        # Just Rented
-        for i in self.sorted_dic['Rented']:
-            complex = self.sorted_dic['Rented'][i].complex
-            unit = self.sorted_dic['Rented'][i].unit
-            actualrent = self.sorted_dic['Rented'][i].actualrent
-            unittype = self.sorted_dic['Rented'][i].unittype
-
-            key = self.abbr_complex(complex) + "_" + unit
-            value = self.abbr_type(unittype) + "-$" + actualrent
-
-            db.collection('Vacancy').document('just_rented').update({key: value})
-
-        # Under Construction
-        for i in self.sorted_dic['Under Construction']:
-            complex = self.abbr_complex(self.sorted_dic['Under Construction'][i].complex)
-            unit = self.sorted_dic['Under Construction'][i].unit
-
-            key = complex + "_" + unit
-            value = ""
-            db.collection('Vacancy').document('under_construction').update({key: value})
-
-        # No Status
-        for i in self.sorted_dic['No Status (Please Update)']:
-            complex = self.abbr_complex(self.sorted_dic['No Status (Please Update)'][i].complex)
-            unit = self.sorted_dic['No Status (Please Update)'][i].unit
-
-            key = complex + "_" + unit
-            value = ""
-            db.collection('Vacancy').document('no_status').update({key: value})
+    # def firestore(self):
+    #     import firebase_admin
+    #     from firebase_admin import credentials
+    #     from firebase_admin import firestore
+    #     cred = credentials.Certificate(r'C:\Users\Lenovo\PycharmProjects\Vacancy\serviceaccountkey.json')
+    #     firebase_admin.initialize_app(cred)
+    #     db = firestore.client()
+    #
+    #     # first: delete all existing documents (Hierarchy: collection ('vacancy') --> document ('rent_ready') --> fields )
+    #     L = ['just_rented', 'no_status', 'recently_updated', 'rent_ready', 'under_construction', 'unit_turns']
+    #     for i in L:
+    #         db.collection('Vacancy').document(i).delete()
+    #     # second: create new documents
+    #     for i in L:
+    #         db.collection('Vacancy').document(i).set({'type': i})
+    #     # third: fill up documents with txt msg data
+    #
+    #     # Rent Ready
+    #     for i in self.sorted_dic['Rent Ready']:
+    #         complex = self.sorted_dic['Rent Ready'][i].complex
+    #         unit = self.sorted_dic['Rent Ready'][i].unit
+    #         askingrent = self.sorted_dic['Rent Ready'][i].askingrent
+    #         unittype = self.sorted_dic['Rent Ready'][i].unittype
+    #
+    #         key = self.abbr_complex(complex) + "_" + unit
+    #         value = self.abbr_type(unittype) + "-$" + askingrent
+    #
+    #         db.collection('Vacancy').document('rent_ready').update({key: value})
+    #
+    #     # Unit Turns
+    #     for i in self.sorted_dic['Unit Still Needs Work']:
+    #         complex = self.sorted_dic['Unit Still Needs Work'][i].complex
+    #         unit = self.sorted_dic['Unit Still Needs Work'][i].unit
+    #         unittype = self.sorted_dic['Unit Still Needs Work'][i].unittype
+    #
+    #         key = self.abbr_complex(complex) + "_" + unit
+    #         value = self.abbr_type(unittype)
+    #         db.collection('Vacancy').document('unit_turns').update({key: value})
+    #
+    #     # Just Rented
+    #     for i in self.sorted_dic['Rented']:
+    #         complex = self.sorted_dic['Rented'][i].complex
+    #         unit = self.sorted_dic['Rented'][i].unit
+    #         actualrent = self.sorted_dic['Rented'][i].actualrent
+    #         unittype = self.sorted_dic['Rented'][i].unittype
+    #
+    #         key = self.abbr_complex(complex) + "_" + unit
+    #         value = self.abbr_type(unittype) + "-$" + actualrent
+    #
+    #         db.collection('Vacancy').document('just_rented').update({key: value})
+    #
+    #     # Under Construction
+    #     for i in self.sorted_dic['Under Construction']:
+    #         complex = self.abbr_complex(self.sorted_dic['Under Construction'][i].complex)
+    #         unit = self.sorted_dic['Under Construction'][i].unit
+    #
+    #         key = complex + "_" + unit
+    #         value = ""
+    #         db.collection('Vacancy').document('under_construction').update({key: value})
+    #
+    #     # No Status
+    #     for i in self.sorted_dic['No Status (Please Update)']:
+    #         complex = self.abbr_complex(self.sorted_dic['No Status (Please Update)'][i].complex)
+    #         unit = self.sorted_dic['No Status (Please Update)'][i].unit
+    #
+    #         key = complex + "_" + unit
+    #         value = ""
+    #         db.collection('Vacancy').document('no_status').update({key: value})
 
     def txtmsg(self):
         #create print statement for mass text distribution
@@ -573,7 +573,7 @@ class vacancy_csv(object):
 
     #delete all the old csv files pulled from appfolio
     def skimthefat(self):
-        path = r'C:\Users\19097\PycharmProjects\VacancyTextScript\*.csv'
+        path = r'C:\Users\Lenovo\PycharmProjects\Vacancy\*.csv'
 
         count = 0
         for fname in glob.glob(path):
@@ -617,11 +617,11 @@ class Unit(object):
 #return list of numbers to message
 def numberstomessage():
 
-    d = {'Victor':'+19098163161','Jian':'+19092101491','Karla':'+19097677208','Brian':'+19097140840',
-        'Richard':'+19516639308','Jeff':'+19092228209','Tony':'+16269991519','Hector':'+19094897033',
-         'Charles':'+19095507143','Amanda':'+19094861526'
-    }
-    # d = {'Victor':'+19098163161'}
+    # d = {'Victor':'+19098163161','Jian':'+19092101491','Karla':'+19097677208','Brian':'+19097140840',
+    #     'Richard':'+19516639308','Jeff':'+19092228209','Tony':'+16269991519','Hector':'+19094897033',
+    #      'Charles':'+19095507143','Amanda':'+19094861526'
+    # }
+    d = {'Victor':'+19098163161'}
     L = []
     for i in d:
         L.append(d[i])
@@ -644,6 +644,8 @@ def call_twilio():
     #create object from csv class
     o1 = vacancy_csv()
     text = o1.printedmsg
+    #to be removed
+    print(text)
     numbers_to_message = L
     print(L)
 
@@ -691,7 +693,6 @@ def readtxtfile():
 # print(o1.printedmsg)
 
 call_twilio()
-
 
 
 
