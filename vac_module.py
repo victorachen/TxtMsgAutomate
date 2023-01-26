@@ -1,4 +1,4 @@
-#As of Jan 19 2023
+#To do: include vacant pad category
 #communicate to managers: statuses can be changed
 import ezgmail, os, csv, ezsheets, glob,shutil
 from datetime import date, datetime,timedelta
@@ -51,7 +51,8 @@ def Add_To_Textmsg_Body():
         # 3a: compare lists from one csv to the next one (done)
 
     all_properties = ['Holiday', 'Mt Vista', 'Westwind', 'Crestview', \
-                          'Hitching Post', 'SFH', 'Patrician', 'Wishing Well']
+                          'Hitching Post', 'SFH', 'Patrician', 'Wishing Well',\
+                      'Avalon','Aladdin','Bonanza']
 
     SFH = ['Chestnut', 'Elm', '12398 4th', '12993 2nd', 'Reedywoods', 'North Grove', \
                'Massachusetts', 'Michigan', '906 N 4th', 'Indian School', 'Cottonwood']
@@ -89,6 +90,7 @@ def Add_To_Textmsg_Body():
         def abbr_propname(longpropname):
             d = {'Holiday': 'Hol', 'Mt Vista': 'MtV', 'Westwind': 'West', 'Crestview': 'Crest', \
                  'Hitching Post': 'HP', 'SFH': 'SFH', 'Patrician': 'Pat', 'Wishing Well': 'Wish', \
+                 'Avalon':'Av', 'Aladdin':'Al', 'Bonanza':'Bon',\
                  'Chestnut': 'Chestnut', 'Elm': 'Elm', '12398 4th': '12398 4th', '12993 2nd': '12993 2nd',\
                  'Reedywoods': 'Reedywd', 'North Grove': 'Grove', \
                  'Massachusetts': 'Massachu', 'Michigan': 'Mich', '906 N 4th': '906 N 4th',\
@@ -174,17 +176,19 @@ class vacancy_csv(object):
         self.d = {}
         self.vac_list = []
         self.properties = ['Holiday', 'Mt Vista', 'Westwind', 'Crestview',\
-                            'Hitching Post', 'SFH', 'Patrician','Wishing Well']
+                            'Hitching Post', 'SFH', 'Patrician','Wishing Well',\
+                           'Avalon','Aladdin','Bonanza']
         self.SFH = ['Chestnut', 'Elm', '12398 4th', '12993 2nd', 'Reedywoods', 'North Grove', \
                     'Massachusetts', 'Michigan', '906 N 4th', 'Indian School', 'Cottonwood']
-        self.dic = {'Holiday':{},'Mt Vista': {},'Westwind':{},\
+        self.dic = {'Holiday':{},'Mt Vista': {},'Westwind':{}, \
+                    'Avalon':{}, 'Aladdin':{}, 'Bonanza':{},\
                     'Crestview':{},'Hitching Post':{},'SFH':{},'Patrician':{},'Wishing Well':{},\
                     'Chestnut': {}, 'Elm': {}, '12398 4th': {}, '12993 2nd': {}, 'Reedywoods': {}, 'North Grove': {}, \
                     'Massachusetts': {}, 'Michigan': {}, '906 N 4th': {}, 'Indian School': {}, 'Cottonwood': {}}
         # self.statuslist = ['Trash Need To Be Cleaned Out','Undergoing Turnover',\
         #                    'Need Appliances','Need Cleaning','Rent Ready','Rented',\
         #                    'Under Construction', 'No Status']
-        self.statuslist = ['Rent Ready','Unit Still Needs Work','Rented','Under Construction','No Status (Please Update)']
+        self.statuslist = ['Rent Ready','Unit Still Needs Work','Rented','Under Construction','Empty Lots','No Status (Please Update)']
         self.ss = ezsheets.Spreadsheet('1Jn3vSrRxB3j1oZab3QZd1gnFczyndmLEbeUqn_JaEkU')
         #action items: calling helper functions
         self.scrapegmail()
@@ -407,6 +411,7 @@ class vacancy_csv(object):
     #abbreviate name of complex for txt msg. takes in full name of unit & returns abbr unit name string
     def abbr_complex(self, complex):
         d = {'Holiday':'Hol', 'Mt Vista':'MtV', 'Westwind':'West', 'Crestview':'Crest', \
+             'Avalon':'Av', 'Aladdin':'Al', 'Bonanza':'Bon',\
          'Hitching Post':'HP', 'SFH':'SFH', 'Patrician':'Pat','Wishing Well':'Wish',\
              'Chestnut': 'Chestnut', 'Elm': 'Elm', '12398 4th': '12398 4th', '12993 2nd': '12993 2nd', 'Reedywoods': 'Reedywd', 'North Grove': 'Grove', \
              'Massachusetts': 'Massachu', 'Michigan': 'Mich', '906 N 4th': '906 N 4th', 'Indian School': 'Indian School', 'Cottonwood': 'Cottonwd'
@@ -508,7 +513,7 @@ class vacancy_csv(object):
             string+= self.abbr_complex(complex) +" "+ unit+ self.abbr_type(unittype)+"- $"+askingrent +"\n"
 
         string+= " \n"
-        string+= "Unit Turns: (Next Steps: https://tinyurl.com/345drb6w)\n"
+        string+= "Unit Turnovers\n"
         string+= "-  -  -  -  -  -  -  -  -  -  -\n"
         for i in self.sorted_dic['Unit Still Needs Work']:
             complex = self.sorted_dic['Unit Still Needs Work'][i].complex
@@ -532,7 +537,7 @@ class vacancy_csv(object):
             string+= self.abbr_complex(complex) +" "+ unit+ self.abbr_type(unittype)+"- $"+actualrent +"\n"
 
         string+= "\n"
-        string += "Under Construction:\n"
+        string += "New Coach/Construction:\n"
         string += "-  -  -  -  -  -  -  -  -  -  -\n"
         L = []
         for i in self.sorted_dic['Under Construction']:
@@ -547,6 +552,24 @@ class vacancy_csv(object):
         string += liststring+"\n"
 
         string+= "\n"
+
+        string += "\n"
+        string += "Empty Lots:\n"
+        string += "-  -  -  -  -  -  -  -  -  -  -\n"
+        L = []
+        for i in self.sorted_dic['Empty Lots']:
+            complex = self.abbr_complex(self.sorted_dic['Empty Lots'][i].complex)
+            unit = self.sorted_dic['Empty Lots'][i].unit
+            combined = complex + " " + unit
+            L.append(combined)
+            # compile everything in list & add to one line in string
+        liststring = ''
+        for x in L:
+            liststring += x + ", "
+        string += liststring + "\n"
+
+        string += "\n"
+
         string += "No Status (Pls Update):\n"
         string += "-  -  -  -  -  -  -  -  -  -  -\n"
         L2 = []
