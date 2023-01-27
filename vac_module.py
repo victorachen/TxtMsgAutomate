@@ -428,83 +428,83 @@ class vacancy_csv(object):
         return s2
 
         # Oct 5th firestore code baby!
-    # def firestore(self):
-    #     import firebase_admin
-    #     from firebase_admin import credentials
-    #     from firebase_admin import firestore
-    #     cred = credentials.Certificate(r'C:\Users\Lenovo\PycharmProjects\Vacancy\serviceaccountkey.json')
-    #     firebase_admin.initialize_app(cred)
-    #     db = firestore.client()
-    #
-    #     # first: delete all existing documents (Hierarchy: collection ('vacancy') --> document ('rent_ready') --> fields )
-    #     L = ['just_rented', 'no_status', 'recently_updated', 'rent_ready', 'under_construction','empty_lots', 'unit_turns']
-    #     for i in L:
-    #         db.collection('Vacancy').document(i).delete()
-    #     # second: create new documents
-    #     for i in L:
-    #         db.collection('Vacancy').document(i).set({'type': i})
-    #     # third: fill up documents with txt msg data
-    #
-    #     # Rent Ready
-    #     for i in self.sorted_dic['Rent Ready']:
-    #         complex = self.sorted_dic['Rent Ready'][i].complex
-    #         unit = self.sorted_dic['Rent Ready'][i].unit
-    #         askingrent = self.sorted_dic['Rent Ready'][i].askingrent
-    #         unittype = self.sorted_dic['Rent Ready'][i].unittype
-    #
-    #         key = self.abbr_complex(complex) + "_" + unit
-    #         value = self.abbr_type(unittype) + "-$" + askingrent
-    #
-    #         db.collection('Vacancy').document('rent_ready').update({key: value})
-    #
-    #     # Unit Turns
-    #     for i in self.sorted_dic['Recently Vacated - Needs Work']:
-    #         complex = self.sorted_dic['Recently Vacated - Needs Work'][i].complex
-    #         unit = self.sorted_dic['Recently Vacated - Needs Work'][i].unit
-    #         unittype = self.sorted_dic['Recently Vacated - Needs Work'][i].unittype
-    #
-    #         key = self.abbr_complex(complex) + "_" + unit
-    #         value = self.abbr_type(unittype)
-    #         db.collection('Vacancy').document('unit_turns').update({key: value})
-    #
-    #     # Just Rented
-    #     for i in self.sorted_dic['Rented']:
-    #         complex = self.sorted_dic['Rented'][i].complex
-    #         unit = self.sorted_dic['Rented'][i].unit
-    #         actualrent = self.sorted_dic['Rented'][i].actualrent
-    #         unittype = self.sorted_dic['Rented'][i].unittype
-    #
-    #         key = self.abbr_complex(complex) + "_" + unit
-    #         value = self.abbr_type(unittype) + "-$" + actualrent
-    #
-    #         db.collection('Vacancy').document('just_rented').update({key: value})
-    #
-    #     # Under Construction
-    #     for i in self.sorted_dic['New Coach/Construction']:
-    #         complex = self.abbr_complex(self.sorted_dic['New Coach/Construction'][i].complex)
-    #         unit = self.sorted_dic['New Coach/Construction'][i].unit
-    #
-    #         key = complex + "_" + unit
-    #         value = ""
-    #         db.collection('Vacancy').document('under_construction').update({key: value})
-    #
-    #     #Empty Lots
-    #     for i in self.sorted_dic['Empty Lot']:
-    #         complex = self.abbr_complex(self.sorted_dic['Empty Lot'][i].complex)
-    #         unit = self.sorted_dic['Empty Lot'][i].unit
-    #
-    #         key = complex + "_" + unit
-    #         value = ""
-    #         db.collection('Vacancy').document('empty_lots').update({key: value})
-    #
-    #     # No Status
-    #     for i in self.sorted_dic['No Status (Please Update)']:
-    #         complex = self.abbr_complex(self.sorted_dic['No Status (Please Update)'][i].complex)
-    #         unit = self.sorted_dic['No Status (Please Update)'][i].unit
-    #
-    #         key = complex + "_" + unit
-    #         value = ""
-    #         db.collection('Vacancy').document('no_status').update({key: value})
+    def firestore(self):
+        import firebase_admin
+        from firebase_admin import credentials
+        from firebase_admin import firestore
+        cred = credentials.Certificate(r'C:\Users\Lenovo\PycharmProjects\Vacancy\serviceaccountkey.json')
+        firebase_admin.initialize_app(cred)
+        db = firestore.client()
+
+        # first: delete all existing documents (Hierarchy: collection ('vacancy') --> document ('rent_ready') --> fields )
+        L = ['just_rented', 'no_status', 'recently_updated', 'rent_ready', 'under_construction','empty_lots', 'unit_turns']
+        for i in L:
+            db.collection('Vacancy').document(i).delete()
+        # second: create new documents
+        for i in L:
+            db.collection('Vacancy').document(i).set({'type': i})
+        # third: fill up documents with txt msg data
+
+        # Rent Ready
+        for i in self.sorted_dic['Rent Ready']:
+            complex = self.sorted_dic['Rent Ready'][i].complex
+            unit = self.sorted_dic['Rent Ready'][i].unit
+            askingrent = self.sorted_dic['Rent Ready'][i].askingrent
+            unittype = self.sorted_dic['Rent Ready'][i].unittype
+
+            key = self.abbr_complex(complex) + "_" + unit
+            value = self.abbr_type(unittype) + "-$" + askingrent
+
+            db.collection('Vacancy').document('rent_ready').update({key: value})
+
+        # Unit Turns
+        for i in self.sorted_dic['Recently Vacated - Needs Work']:
+            complex = self.sorted_dic['Recently Vacated - Needs Work'][i].complex
+            unit = self.sorted_dic['Recently Vacated - Needs Work'][i].unit
+            unittype = self.sorted_dic['Recently Vacated - Needs Work'][i].unittype
+
+            key = self.abbr_complex(complex) + "_" + unit
+            value = self.abbr_type(unittype)
+            db.collection('Vacancy').document('unit_turns').update({key: value})
+
+        # Just Rented
+        for i in self.sorted_dic['Rented']:
+            complex = self.sorted_dic['Rented'][i].complex
+            unit = self.sorted_dic['Rented'][i].unit
+            actualrent = self.sorted_dic['Rented'][i].actualrent
+            unittype = self.sorted_dic['Rented'][i].unittype
+
+            key = self.abbr_complex(complex) + "_" + unit
+            value = self.abbr_type(unittype) + "-$" + actualrent
+
+            db.collection('Vacancy').document('just_rented').update({key: value})
+
+        # Under Construction
+        for i in self.sorted_dic['New Coach/Construction']:
+            complex = self.abbr_complex(self.sorted_dic['New Coach/Construction'][i].complex)
+            unit = self.sorted_dic['New Coach/Construction'][i].unit
+
+            key = complex + "_" + unit
+            value = ""
+            db.collection('Vacancy').document('under_construction').update({key: value})
+
+        #Empty Lots
+        for i in self.sorted_dic['Empty Lot']:
+            complex = self.abbr_complex(self.sorted_dic['Empty Lot'][i].complex)
+            unit = self.sorted_dic['Empty Lot'][i].unit
+
+            key = complex + "_" + unit
+            value = ""
+            db.collection('Vacancy').document('empty_lots').update({key: value})
+
+        # No Status
+        for i in self.sorted_dic['No Status (Please Update)']:
+            complex = self.abbr_complex(self.sorted_dic['No Status (Please Update)'][i].complex)
+            unit = self.sorted_dic['No Status (Please Update)'][i].unit
+
+            key = complex + "_" + unit
+            value = ""
+            db.collection('Vacancy').document('no_status').update({key: value})
 
     def txtmsg(self):
         #create print statement for mass text distribution
