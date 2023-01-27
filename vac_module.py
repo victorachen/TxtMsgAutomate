@@ -188,7 +188,7 @@ class vacancy_csv(object):
         # self.statuslist = ['Trash Need To Be Cleaned Out','Undergoing Turnover',\
         #                    'Need Appliances','Need Cleaning','Rent Ready','Rented',\
         #                    'Under Construction', 'No Status']
-        self.statuslist = ['Rent Ready','Unit Still Needs Work','Rented','Under Construction','Empty Lots','No Status (Please Update)']
+        self.statuslist = ['Rent Ready','Recently Vacated - Needs Work','Rented','New Coach/Construction','Empty Lot','No Status (Please Update)']
         self.ss = ezsheets.Spreadsheet('1Jn3vSrRxB3j1oZab3QZd1gnFczyndmLEbeUqn_JaEkU')
         #action items: calling helper functions
         self.scrapegmail()
@@ -428,8 +428,6 @@ class vacancy_csv(object):
         return s2
 
         # Oct 5th firestore code baby!
-
-
     # def firestore(self):
     #     import firebase_admin
     #     from firebase_admin import credentials
@@ -439,7 +437,7 @@ class vacancy_csv(object):
     #     db = firestore.client()
     #
     #     # first: delete all existing documents (Hierarchy: collection ('vacancy') --> document ('rent_ready') --> fields )
-    #     L = ['just_rented', 'no_status', 'recently_updated', 'rent_ready', 'under_construction', 'unit_turns']
+    #     L = ['just_rented', 'no_status', 'recently_updated', 'rent_ready', 'under_construction','empty_lots', 'unit_turns']
     #     for i in L:
     #         db.collection('Vacancy').document(i).delete()
     #     # second: create new documents
@@ -460,10 +458,10 @@ class vacancy_csv(object):
     #         db.collection('Vacancy').document('rent_ready').update({key: value})
     #
     #     # Unit Turns
-    #     for i in self.sorted_dic['Unit Still Needs Work']:
-    #         complex = self.sorted_dic['Unit Still Needs Work'][i].complex
-    #         unit = self.sorted_dic['Unit Still Needs Work'][i].unit
-    #         unittype = self.sorted_dic['Unit Still Needs Work'][i].unittype
+    #     for i in self.sorted_dic['Recently Vacated - Needs Work']:
+    #         complex = self.sorted_dic['Recently Vacated - Needs Work'][i].complex
+    #         unit = self.sorted_dic['Recently Vacated - Needs Work'][i].unit
+    #         unittype = self.sorted_dic['Recently Vacated - Needs Work'][i].unittype
     #
     #         key = self.abbr_complex(complex) + "_" + unit
     #         value = self.abbr_type(unittype)
@@ -482,13 +480,22 @@ class vacancy_csv(object):
     #         db.collection('Vacancy').document('just_rented').update({key: value})
     #
     #     # Under Construction
-    #     for i in self.sorted_dic['Under Construction']:
-    #         complex = self.abbr_complex(self.sorted_dic['Under Construction'][i].complex)
-    #         unit = self.sorted_dic['Under Construction'][i].unit
+    #     for i in self.sorted_dic['New Coach/Construction']:
+    #         complex = self.abbr_complex(self.sorted_dic['New Coach/Construction'][i].complex)
+    #         unit = self.sorted_dic['New Coach/Construction'][i].unit
     #
     #         key = complex + "_" + unit
     #         value = ""
     #         db.collection('Vacancy').document('under_construction').update({key: value})
+    #
+    #     #Empty Lots
+    #     for i in self.sorted_dic['Empty Lot']:
+    #         complex = self.abbr_complex(self.sorted_dic['Empty Lot'][i].complex)
+    #         unit = self.sorted_dic['Empty Lot'][i].unit
+    #
+    #         key = complex + "_" + unit
+    #         value = ""
+    #         db.collection('Vacancy').document('empty_lots').update({key: value})
     #
     #     # No Status
     #     for i in self.sorted_dic['No Status (Please Update)']:
@@ -513,13 +520,13 @@ class vacancy_csv(object):
             string+= self.abbr_complex(complex) +" "+ unit+ self.abbr_type(unittype)+"- $"+askingrent +"\n"
 
         string+= " \n"
-        string+= "Unit Turnovers\n"
+        string+= "Recently Vacated - Needs Work:\n"
         string+= "-  -  -  -  -  -  -  -  -  -  -\n"
-        for i in self.sorted_dic['Unit Still Needs Work']:
-            complex = self.sorted_dic['Unit Still Needs Work'][i].complex
-            unit = self.sorted_dic['Unit Still Needs Work'][i].unit
-            nextsteps = self.sorted_dic['Unit Still Needs Work'][i].notes
-            unittype = self.sorted_dic['Unit Still Needs Work'][i].unittype
+        for i in self.sorted_dic['Recently Vacated - Needs Work']:
+            complex = self.sorted_dic['Recently Vacated - Needs Work'][i].complex
+            unit = self.sorted_dic['Recently Vacated - Needs Work'][i].unit
+            nextsteps = self.sorted_dic['Recently Vacated - Needs Work'][i].notes
+            unittype = self.sorted_dic['Recently Vacated - Needs Work'][i].unittype
             if nextsteps == "":
                 nextsteps = "What's next?"
             # string+= self.abbr_complex(complex) +" "+ unit+ self.abbr_type(unittype)+"- "+nextsteps +"\n"
@@ -540,9 +547,9 @@ class vacancy_csv(object):
         string += "New Coach/Construction:\n"
         string += "-  -  -  -  -  -  -  -  -  -  -\n"
         L = []
-        for i in self.sorted_dic['Under Construction']:
-            complex = self.abbr_complex(self.sorted_dic['Under Construction'][i].complex)
-            unit = self.sorted_dic['Under Construction'][i].unit
+        for i in self.sorted_dic['New Coach/Construction']:
+            complex = self.abbr_complex(self.sorted_dic['New Coach/Construction'][i].complex)
+            unit = self.sorted_dic['New Coach/Construction'][i].unit
             combined = complex + " "+ unit
             L.append(combined)
             # compile everything in list & add to one line in string
@@ -557,9 +564,9 @@ class vacancy_csv(object):
         string += "Empty Lots:\n"
         string += "-  -  -  -  -  -  -  -  -  -  -\n"
         L = []
-        for i in self.sorted_dic['Empty Lots']:
-            complex = self.abbr_complex(self.sorted_dic['Empty Lots'][i].complex)
-            unit = self.sorted_dic['Empty Lots'][i].unit
+        for i in self.sorted_dic['Empty Lot']:
+            complex = self.abbr_complex(self.sorted_dic['Empty Lot'][i].complex)
+            unit = self.sorted_dic['Empty Lot'][i].unit
             combined = complex + " " + unit
             L.append(combined)
             # compile everything in list & add to one line in string
@@ -642,7 +649,7 @@ def numberstomessage():
 
     # d = {'Victor':'+19098163161','Jian':'+19092101491','Karla':'+19097677208','Brian':'+19097140840',
     #     'Richard':'+19516639308','Jeff':'+19092228209','Tony':'+16269991519','Hector':'+19094897033',
-    #      'Charles':'+19095507143','Amanda':'+19094861526'
+    #      'Rick':'+19092541913','Amanda':'+19094861526','Debbie':'+7605141103'
     # }
     d = {'Victor':'+19098163161'}
     L = []
