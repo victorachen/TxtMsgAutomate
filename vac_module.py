@@ -4,7 +4,7 @@ import ezgmail, os, csv, ezsheets, glob,shutil
 from datetime import date, datetime,timedelta
 from twilio.rest import Client
 from pathlib import Path
-os.chdir(r'C:\Users\Lenovo\PycharmProjects\Vacancy')
+os.chdir(r'C:\Users\19097\PycharmProjects\VacancyTextScript')
 
 #Aug 6th: 2022 -- we want to add functionality where: if there is a new vacant unit in AppFolio, the code sends out a text msg alert to everyone
 #we are going to try to do as much of this outside the class as possible (waay too messy inside the class)
@@ -12,7 +12,7 @@ def Add_To_Textmsg_Body():
     #first: pull both csv's and store data in lists
     today = date.today()
     yesterday = today - timedelta(days=1)
-    path = r'C:\Users\Lenovo\PycharmProjects\Vacancy\module_update'
+    path = r'C:\Users\19097\PycharmProjects\VacancyTextScript\module_update'
     def download_csvs():
         ezgmail.init()
         thread = ezgmail.search('Batcave located in vacancy')
@@ -36,7 +36,7 @@ def Add_To_Textmsg_Body():
  #helper function: given a date, scrape through gmail to find the corresponding csv file
     #--> and then spit that csv file data into a list (returned)
     def extract_csv_data(date):
-        firsthalf = r'C:\Users\Lenovo\PycharmProjects\Vacancy\module_update\unit_vacancy_detail-'
+        firsthalf = r'C:\Users\19097\PycharmProjects\VacancyTextScript\module_update\unit_vacancy_detail-'
         secondhalf = str(date).replace('-', '') + '.csv'
         filename = firsthalf + secondhalf
         file = open(filename)
@@ -201,12 +201,12 @@ class vacancy_csv(object):
         self.compare()
         #add the sorted dic into self.printed msg
         self.txtmsg()
-        # self.firestore()
+        self.firestore()
         self.skimthefat()
     def scrapegmail(self):
         ezgmail.init()
         thread = ezgmail.search('Batcave located in vacancy')
-        thread[0].messages[0].downloadAllAttachments(downloadFolder=r'C:\Users\Lenovo\PycharmProjects\Vacancy')
+        thread[0].messages[0].downloadAllAttachments(downloadFolder=r'C:\Users\19097\PycharmProjects\VacancyTextScript')
         return None
     def read_csv(self):
         s1 = "unit_vacancy_detail-"
@@ -432,7 +432,7 @@ class vacancy_csv(object):
         import firebase_admin
         from firebase_admin import credentials
         from firebase_admin import firestore
-        cred = credentials.Certificate(r'C:\Users\Lenovo\PycharmProjects\Vacancy\serviceaccountkey.json')
+        cred = credentials.Certificate(r'C:\Users\19097\PycharmProjects\VacancyTextScript\serviceaccountkey.json')
         firebase_admin.initialize_app(cred)
         db = firestore.client()
 
@@ -603,7 +603,7 @@ class vacancy_csv(object):
 
     #delete all the old csv files pulled from appfolio
     def skimthefat(self):
-        path = r'C:\Users\Lenovo\PycharmProjects\Vacancy\*.csv'
+        path = r'C:\Users\19097\PycharmProjects\VacancyTextScript\*.csv'
 
         count = 0
         for fname in glob.glob(path):
@@ -723,7 +723,6 @@ def readtxtfile():
 # print(o1.printedmsg)
 
 call_twilio()
-
 
 
 
