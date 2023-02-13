@@ -520,7 +520,7 @@ class vacancy_csv(object):
             string+= self.abbr_complex(complex) +" "+ unit+ self.abbr_type(unittype)+"- $"+askingrent +"\n"
 
         string+= " \n"
-        string+= "Recently Vacated - Needs Work:\n"
+        string+= "Unit Turnovers:\n"
         string+= "-  -  -  -  -  -  -  -  -  -  -\n"
         for i in self.sorted_dic['Recently Vacated - Needs Work']:
             complex = self.sorted_dic['Recently Vacated - Needs Work'][i].complex
@@ -544,7 +544,7 @@ class vacancy_csv(object):
             string+= self.abbr_complex(complex) +" "+ unit+ self.abbr_type(unittype)+"- $"+actualrent +"\n"
 
         string+= "\n"
-        string += "New Coach/Construction:\n"
+        string += "New Coach/Constr:\n"
         string += "-  -  -  -  -  -  -  -  -  -  -\n"
         L = []
         for i in self.sorted_dic['New Coach/Construction']:
@@ -559,8 +559,7 @@ class vacancy_csv(object):
         string += liststring+"\n"
 
         string+= "\n"
-
-        string += "\n"
+        
         string += "Empty Lots:\n"
         string += "-  -  -  -  -  -  -  -  -  -  -\n"
         L = []
@@ -577,7 +576,7 @@ class vacancy_csv(object):
 
         string += "\n"
 
-        string += "No Status (Pls Update):\n"
+        string += "No Status:\n"
         string += "-  -  -  -  -  -  -  -  -  -  -\n"
         L2 = []
         for i in self.sorted_dic['No Status (Please Update)']:
@@ -594,6 +593,8 @@ class vacancy_csv(object):
         string+= "\n"
         string+= "https://forms.gle/ZJminE5umWn9E8YM6"
         string+= "\n"
+        string+="https://vacantunits.streamlit.app/"
+        string+="\n"
         if is_it_time_baby():
             self.printedmsg = self.beginning + self.printedmsg + string
         else:
@@ -647,11 +648,11 @@ class Unit(object):
 #return list of numbers to message
 def numberstomessage():
 
-    # d = {'Victor':'+19098163161','Jian':'+19092101491','Karla':'+19097677208','Brian':'+19097140840',
-    #     'Richard':'+19516639308','Jeff':'+19092228209','Tony':'+16269991519','Hector':'+19094897033',
-    #      'Rick':'+19092541913','Amanda':'+19094861526','Debbie':'+7605141103'
-    # }
-    d = {'Victor':'+19098163161'}
+    d = {'Victor':'+19098163161','Jian':'+19092101491','Karla':'+19097677208','Tristan':'+19097140840',
+    'Richard':'+19516639308','Jeff':'+19092228209','Tony':'+16269991519','Hector':'+19094897033',
+    'Rick':'+19092541913','Amanda':'+19094861526','Debbie':'+17605141103','Megan':'+13237192726','Margi':'+19097056966','Mom':'+19093635659'
+    }
+    #d = {'Victor':'+19098163161'}
     L = []
     for i in d:
         L.append(d[i])
