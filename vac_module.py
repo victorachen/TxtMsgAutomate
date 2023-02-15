@@ -371,7 +371,7 @@ class vacancy_csv(object):
             else:
                 s+= personlist[i]
 
-        s += " recently updated: "
+        s += " updated: "
 
         count = 0
         for i in self.updated_lines:
@@ -511,7 +511,7 @@ class vacancy_csv(object):
         string = """"""
         string += "\n"
         string+= "Rent Ready:\n"
-        string += "-  -  -  -  -  -  -  -  -  -  -\n"
+        string += "-  -  -  -  -  -\n"
         for i in self.sorted_dic['Rent Ready']:
             complex = self.sorted_dic['Rent Ready'][i].complex
             unit = self.sorted_dic['Rent Ready'][i].unit
@@ -520,8 +520,8 @@ class vacancy_csv(object):
             string+= self.abbr_complex(complex) +" "+ unit+ self.abbr_type(unittype)+"- $"+askingrent +"\n"
 
         string+= " \n"
-        string+= "Unit Turnovers:\n"
-        string+= "-  -  -  -  -  -  -  -  -  -  -\n"
+        string+= "Unit Turns:\n"
+        string+= "-  -  -  -  -  -\n"
         for i in self.sorted_dic['Recently Vacated - Needs Work']:
             complex = self.sorted_dic['Recently Vacated - Needs Work'][i].complex
             unit = self.sorted_dic['Recently Vacated - Needs Work'][i].unit
@@ -533,8 +533,8 @@ class vacancy_csv(object):
             string+= self.abbr_complex(complex) +" "+ unit+ self.abbr_type(unittype)+", "
 
         string+= "\n"
-        string+= "\nJust Rented:\n"
-        string += "-  -  -  -  -  -  -  -  -  -  -\n"
+        string+= "\nRented!:\n"
+        string += "-  -  -  -  -  -\n"
 
         for i in self.sorted_dic['Rented']:
             complex = self.sorted_dic['Rented'][i].complex
@@ -545,7 +545,7 @@ class vacancy_csv(object):
 
         string+= "\n"
         string += "New Coach/Constr:\n"
-        string += "-  -  -  -  -  -  -  -  -  -  -\n"
+        string += "-  -  -  -  -  -\n"
         L = []
         for i in self.sorted_dic['New Coach/Construction']:
             complex = self.abbr_complex(self.sorted_dic['New Coach/Construction'][i].complex)
@@ -561,7 +561,7 @@ class vacancy_csv(object):
         string+= "\n"
         
         string += "Empty Lots:\n"
-        string += "-  -  -  -  -  -  -  -  -  -  -\n"
+        string += "-  -  -  -  -  -\n"
         L = []
         for i in self.sorted_dic['Empty Lot']:
             complex = self.abbr_complex(self.sorted_dic['Empty Lot'][i].complex)
@@ -577,7 +577,7 @@ class vacancy_csv(object):
         string += "\n"
 
         string += "No Status:\n"
-        string += "-  -  -  -  -  -  -  -  -  -  -\n"
+        string += "-  -  -  -  -  -\n"
         L2 = []
         for i in self.sorted_dic['No Status (Please Update)']:
             complex = self.abbr_complex(self.sorted_dic['No Status (Please Update)'][i].complex)
@@ -592,6 +592,7 @@ class vacancy_csv(object):
 
         string+= "\n"
         string+= "https://forms.gle/ZJminE5umWn9E8YM6"
+        string+= "\n"
         string+= "\n"
         string+="https://vacantunits.streamlit.app/"
         string+="\n"
