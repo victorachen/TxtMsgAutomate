@@ -1,6 +1,6 @@
 #To do: include vacant pad category
 #communicate to managers: statuses can be changed
-import ezgmail, os, csv, ezsheets, glob,shutil
+import ezgmail, os, csv, ezsheets, glob,shutil, re
 from datetime import date, datetime,timedelta
 from twilio.rest import Client
 from pathlib import Path
@@ -512,45 +512,68 @@ class vacancy_csv(object):
         string += "\n"
         string+= "Rent Ready:\n"
         string += "-  -  -  -  -  -\n"
-        for i in self.sorted_dic['Rent Ready']:
-            complex = self.sorted_dic['Rent Ready'][i].complex
-            unit = self.sorted_dic['Rent Ready'][i].unit
-            askingrent = self.sorted_dic['Rent Ready'][i].askingrent
-            unittype = self.sorted_dic['Rent Ready'][i].unittype
-            string+= self.abbr_complex(complex) +" "+ unit+ self.abbr_type(unittype)+"- $"+askingrent +"\n"
+
+        # March 23 updates: chatgpt code
+        def natural_sort_key(s):
+            """Key function for natural sorting"""
+            return [int(x) if x.isdigit() else x.lower() for x in re.split(r'(\d+)', s)]
+
+        def alphabetize_nested_dict(nested_dict):
+            for key, value in nested_dict.items():
+                if isinstance(value, dict):
+                    nested_dict[key] = alphabetize_nested_dict(value)
+            return dict(sorted(nested_dict.items(), key=lambda x: natural_sort_key(x[0])))
+
+        # alphabetize nested dics using that sweet sweet gpt code
+        rentready = alphabetize_nested_dict(self.sorted_dic['Rent Ready'])
+        unitturns = alphabetize_nested_dict(self.sorted_dic['Recently Vacated - Needs Work'])
+        rented = alphabetize_nested_dict(self.sorted_dic['Rented'])
+        newcoach = alphabetize_nested_dict(self.sorted_dic['New Coach/Construction'])
+        emptylot = alphabetize_nested_dict(self.sorted_dic['Empty Lot'])
+        nostatus = alphabetize_nested_dict(self.sorted_dic['No Status (Please Update)'])
+
+        for i in rentready:
+            complex = rentready[i].complex
+            unit = rentready[i].unit
+            askingrent = rentready[i].askingrent
+            unittype = rentready[i].unittype
+            string += self.abbr_complex(complex) + " " + unit + self.abbr_type(unittype) + "- $" + askingrent + "\n"
 
         string+= " \n"
         string+= "Unit Turns:\n"
         string+= "-  -  -  -  -  -\n"
-        for i in self.sorted_dic['Recently Vacated - Needs Work']:
-            complex = self.sorted_dic['Recently Vacated - Needs Work'][i].complex
-            unit = self.sorted_dic['Recently Vacated - Needs Work'][i].unit
-            nextsteps = self.sorted_dic['Recently Vacated - Needs Work'][i].notes
-            unittype = self.sorted_dic['Recently Vacated - Needs Work'][i].unittype
+        for i in unitturns:
+            complex = unitturns[i].complex
+            unit = unitturns[i].unit
+            nextsteps = unitturns[i].notes
+            unittype = unitturns[i].unittype
             if nextsteps == "":
                 nextsteps = "What's next?"
             # string+= self.abbr_complex(complex) +" "+ unit+ self.abbr_type(unittype)+"- "+nextsteps +"\n"
-            string+= self.abbr_complex(complex) +" "+ unit+ self.abbr_type(unittype)+", "
+
+                # March 23 2023 Update: getting rid of unit type to condense space
+            string += self.abbr_complex(complex) + " " + unit + ", "
+            # string+= self.abbr_complex(complex) +" "+ unit+ self.abbr_type(unittype)+", "
 
         string+= "\n"
         string+= "\nRented!:\n"
         string += "-  -  -  -  -  -\n"
 
-        for i in self.sorted_dic['Rented']:
-            complex = self.sorted_dic['Rented'][i].complex
-            unit = self.sorted_dic['Rented'][i].unit
-            actualrent = self.sorted_dic['Rented'][i].actualrent
-            unittype = self.sorted_dic['Rented'][i].unittype
-            string+= self.abbr_complex(complex) +" "+ unit+ self.abbr_type(unittype)+"- $"+actualrent +"\n"
+        for i in rented:
+            complex = rented[i].complex
+            unit = rented[i].unit
+            actualrent = rented[i].actualrent
+            unittype = rented[i].unittype
+            string += self.abbr_complex(complex) + " " + unit + self.abbr_type(unittype) + "- $" + actualrent + "\n"
 
         string+= "\n"
         string += "New Coach/Constr:\n"
         string += "-  -  -  -  -  -\n"
         L = []
-        for i in self.sorted_dic['New Coach/Construction']:
-            complex = self.abbr_complex(self.sorted_dic['New Coach/Construction'][i].complex)
-            unit = self.sorted_dic['New Coach/Construction'][i].unit
-            combined = complex + " "+ unit
+        for i in newcoach:
+            complex = self.abbr_complex(newcoach[i].complex)
+            unit = newcoach[i].unit
+            combined = complex + " " + unit
             L.append(combined)
             # compile everything in list & add to one line in string
         liststring = ''
@@ -563,9 +586,9 @@ class vacancy_csv(object):
         string += "Empty Lots:\n"
         string += "-  -  -  -  -  -\n"
         L = []
-        for i in self.sorted_dic['Empty Lot']:
-            complex = self.abbr_complex(self.sorted_dic['Empty Lot'][i].complex)
-            unit = self.sorted_dic['Empty Lot'][i].unit
+        for i in emptylot:
+            complex = self.abbr_complex(emptylot[i].complex)
+            unit = emptylot[i].unit
             combined = complex + " " + unit
             L.append(combined)
             # compile everything in list & add to one line in string
@@ -579,9 +602,9 @@ class vacancy_csv(object):
         string += "No Status:\n"
         string += "-  -  -  -  -  -\n"
         L2 = []
-        for i in self.sorted_dic['No Status (Please Update)']:
-            complex = self.abbr_complex(self.sorted_dic['No Status (Please Update)'][i].complex)
-            unit = self.sorted_dic['No Status (Please Update)'][i].unit
+        for i in nostatus:
+            complex = self.abbr_complex(nostatus[i].complex)
+            unit = nostatus[i].unit
             combined = complex + " " + unit
             L2.append(combined)
             # compile everything in list & add to one line in string
@@ -649,11 +672,11 @@ class Unit(object):
 #return list of numbers to message
 def numberstomessage():
 
-    # d = {'Victor':'+19098163161','Jian':'+19092101491','Karla':'+19097677208','Tristan':'+19097140840',
-    # 'Richard':'+19516639308','Jeff':'+19092228209','Hector':'+19094897033',
-    # 'Rick':'+19092541913','Amanda':'+19094861526','Debbie':'+17605141103','Megan':'+13237192726','Margi':'+19097056966','Mom':'+19093635659'
-    # }
-    d = {'Victor':'+19098163161'}
+    d = {'Victor':'+19098163161','Jian':'+19092101491','Karla':'+19097677208','Tristan':'+19097140840',
+    'Richard':'+19516639308','Jeff':'+19092228209','Hector':'+19094897033',
+    'Rick':'+19092541913','Amanda':'+19094861526','Debbie':'+17605141103','Megan':'+13237192726','Margi':'+19097056966','Mom':'+19093635659'
+    }
+    # d = {'Victor':'+19098163161'}
     L = []
     for i in d:
         L.append(d[i])
