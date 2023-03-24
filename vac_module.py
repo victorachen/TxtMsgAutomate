@@ -1,13 +1,10 @@
-#Inputs all on the bottom:
-
-
-
+#To do: include vacant pad category
 #communicate to managers: statuses can be changed
-import ezgmail, os, csv, ezsheets, glob,shutil, re
+import ezgmail, os, csv, ezsheets, glob,shutil
 from datetime import date, datetime,timedelta
 from twilio.rest import Client
 from pathlib import Path
-os.chdir(r'C:\Users\Lenovo\PycharmProjects\Vacancy')
+os.chdir(r'C:\Users\19097\PycharmProjects\VacancyTextScript')
 
 #Aug 6th: 2022 -- we want to add functionality where: if there is a new vacant unit in AppFolio, the code sends out a text msg alert to everyone
 #we are going to try to do as much of this outside the class as possible (waay too messy inside the class)
@@ -15,7 +12,7 @@ def Add_To_Textmsg_Body():
     #first: pull both csv's and store data in lists
     today = date.today()
     yesterday = today - timedelta(days=1)
-    path = r'C:\Users\Lenovo\PycharmProjects\Vacancy\module_update'
+    path = r'C:\Users\19097\PycharmProjects\VacancyTextScript\module_update'
     def download_csvs():
         ezgmail.init()
         thread = ezgmail.search('Batcave located in vacancy')
@@ -39,7 +36,7 @@ def Add_To_Textmsg_Body():
  #helper function: given a date, scrape through gmail to find the corresponding csv file
     #--> and then spit that csv file data into a list (returned)
     def extract_csv_data(date):
-        firsthalf = r'C:\Users\Lenovo\PycharmProjects\Vacancy\module_update\unit_vacancy_detail-'
+        firsthalf = r'C:\Users\19097\PycharmProjects\VacancyTextScript\module_update\unit_vacancy_detail-'
         secondhalf = str(date).replace('-', '') + '.csv'
         filename = firsthalf + secondhalf
         file = open(filename)
@@ -204,12 +201,12 @@ class vacancy_csv(object):
         self.compare()
         #add the sorted dic into self.printed msg
         self.txtmsg()
-        # self.firestore()
+        self.firestore()
         self.skimthefat()
     def scrapegmail(self):
         ezgmail.init()
         thread = ezgmail.search('Batcave located in vacancy')
-        thread[0].messages[0].downloadAllAttachments(downloadFolder=r'C:\Users\Lenovo\PycharmProjects\Vacancy')
+        thread[0].messages[0].downloadAllAttachments(downloadFolder=r'C:\Users\19097\PycharmProjects\VacancyTextScript')
         return None
     def read_csv(self):
         s1 = "unit_vacancy_detail-"
@@ -374,7 +371,7 @@ class vacancy_csv(object):
             else:
                 s+= personlist[i]
 
-        s += " recently updated: "
+        s += " updated: "
 
         count = 0
         for i in self.updated_lines:
@@ -435,7 +432,7 @@ class vacancy_csv(object):
         import firebase_admin
         from firebase_admin import credentials
         from firebase_admin import firestore
-        cred = credentials.Certificate(r'C:\Users\Lenovo\PycharmProjects\Vacancy\serviceaccountkey.json')
+        cred = credentials.Certificate(r'C:\Users\19097\PycharmProjects\VacancyTextScript\serviceaccountkey.json')
         firebase_admin.initialize_app(cred)
         db = firestore.client()
 
@@ -510,82 +507,49 @@ class vacancy_csv(object):
             db.collection('Vacancy').document('no_status').update({key: value})
 
     def txtmsg(self):
-
         #create print statement for mass text distribution
         string = """"""
         string += "\n"
         string+= "Rent Ready:\n"
-        string += "-  -  -  -  -  -  -  -  -  -  -\n"
-
-        # March 23 updates: chatgpt code
-        #make sure to import re!
-        def natural_sort_key(s):
-            """Key function for natural sorting"""
-            return [int(x) if x.isdigit() else x.lower() for x in re.split(r'(\d+)', s)]
-
-        def alphabetize_nested_dict(nested_dict):
-            for key, value in nested_dict.items():
-                if isinstance(value, dict):
-                    nested_dict[key] = alphabetize_nested_dict(value)
-            return dict(sorted(nested_dict.items(), key=lambda x: natural_sort_key(x[0])))
-
-        #alphabetize nested dics using that sweet sweet gpt code
-        rentready = alphabetize_nested_dict(self.sorted_dic['Rent Ready'])
-        unitturns = alphabetize_nested_dict(self.sorted_dic['Recently Vacated - Needs Work'])
-        rented = alphabetize_nested_dict(self.sorted_dic['Rented'])
-        newcoach = alphabetize_nested_dict(self.sorted_dic['New Coach/Construction'])
-        emptylot = alphabetize_nested_dict(self.sorted_dic['Empty Lot'])
-        nostatus = alphabetize_nested_dict(self.sorted_dic['No Status (Please Update)'])
-
-        for i in rentready:
-            complex = rentready[i].complex
-            unit = rentready[i].unit
-            askingrent = rentready[i].askingrent
-            unittype = rentready[i].unittype
+        string += "-  -  -  -  -  -\n"
+        for i in self.sorted_dic['Rent Ready']:
+            complex = self.sorted_dic['Rent Ready'][i].complex
+            unit = self.sorted_dic['Rent Ready'][i].unit
+            askingrent = self.sorted_dic['Rent Ready'][i].askingrent
+            unittype = self.sorted_dic['Rent Ready'][i].unittype
             string+= self.abbr_complex(complex) +" "+ unit+ self.abbr_type(unittype)+"- $"+askingrent +"\n"
 
-        # for i in self.sorted_dic['Rent Ready']:
-        #     complex = self.sorted_dic['Rent Ready'][i].complex
-        #     unit = self.sorted_dic['Rent Ready'][i].unit
-        #     askingrent = self.sorted_dic['Rent Ready'][i].askingrent
-        #     unittype = self.sorted_dic['Rent Ready'][i].unittype
-        #     string+= self.abbr_complex(complex) +" "+ unit+ self.abbr_type(unittype)+"- $"+askingrent +"\n"
-
         string+= " \n"
-        string+= "Recently Vacated - Needs Work:\n"
-        string+= "-  -  -  -  -  -  -  -  -  -  -\n"
-        for i in unitturns:
-            complex = unitturns[i].complex
-            unit = unitturns[i].unit
-            nextsteps = unitturns[i].notes
-            unittype = unitturns[i].unittype
+        string+= "Unit Turns:\n"
+        string+= "-  -  -  -  -  -\n"
+        for i in self.sorted_dic['Recently Vacated - Needs Work']:
+            complex = self.sorted_dic['Recently Vacated - Needs Work'][i].complex
+            unit = self.sorted_dic['Recently Vacated - Needs Work'][i].unit
+            nextsteps = self.sorted_dic['Recently Vacated - Needs Work'][i].notes
+            unittype = self.sorted_dic['Recently Vacated - Needs Work'][i].unittype
             if nextsteps == "":
                 nextsteps = "What's next?"
-
-
             # string+= self.abbr_complex(complex) +" "+ unit+ self.abbr_type(unittype)+"- "+nextsteps +"\n"
-            # string+= self.abbr_complex(complex) +" "+ unit+ self.abbr_type(unittype)+", "
-            #March 23 2023 Update: getting rid of unit type to condense space
-            string += self.abbr_complex(complex) + " " + unit +  ", "
+            string+= self.abbr_complex(complex) +" "+ unit+ self.abbr_type(unittype)+", "
 
         string+= "\n"
-        string+= "\nJust Rented:\n"
-        string += "-  -  -  -  -  -  -  -  -  -  -\n"
+        string+= "\nRented!:\n"
+        string += "-  -  -  -  -  -\n"
 
-        for i in rented:
-            complex = rented[i].complex
-            unit = rented[i].unit
-            actualrent = rented[i].actualrent
-            unittype = rented[i].unittype
+        for i in self.sorted_dic['Rented']:
+            complex = self.sorted_dic['Rented'][i].complex
+            unit = self.sorted_dic['Rented'][i].unit
+            actualrent = self.sorted_dic['Rented'][i].actualrent
+            unittype = self.sorted_dic['Rented'][i].unittype
             string+= self.abbr_complex(complex) +" "+ unit+ self.abbr_type(unittype)+"- $"+actualrent +"\n"
 
         string+= "\n"
-        string += "New Coach/Construction:\n"
-        string += "-  -  -  -  -  -  -  -  -  -  -\n"
+        string += "New Coach/Constr:\n"
+        string += "-  -  -  -  -  -\n"
         L = []
-        for i in newcoach:
-            complex = self.abbr_complex(newcoach[i].complex)
-            unit = newcoach[i].unit
+        for i in self.sorted_dic['New Coach/Construction']:
+            complex = self.abbr_complex(self.sorted_dic['New Coach/Construction'][i].complex)
+            unit = self.sorted_dic['New Coach/Construction'][i].unit
             combined = complex + " "+ unit
             L.append(combined)
             # compile everything in list & add to one line in string
@@ -595,14 +559,13 @@ class vacancy_csv(object):
         string += liststring+"\n"
 
         string+= "\n"
-
-        string += "\n"
+        
         string += "Empty Lots:\n"
-        string += "-  -  -  -  -  -  -  -  -  -  -\n"
+        string += "-  -  -  -  -  -\n"
         L = []
-        for i in emptylot:
-            complex = self.abbr_complex(emptylot[i].complex)
-            unit = emptylot[i].unit
+        for i in self.sorted_dic['Empty Lot']:
+            complex = self.abbr_complex(self.sorted_dic['Empty Lot'][i].complex)
+            unit = self.sorted_dic['Empty Lot'][i].unit
             combined = complex + " " + unit
             L.append(combined)
             # compile everything in list & add to one line in string
@@ -613,12 +576,12 @@ class vacancy_csv(object):
 
         string += "\n"
 
-        string += "No Status (Pls Update):\n"
-        string += "-  -  -  -  -  -  -  -  -  -  -\n"
+        string += "No Status:\n"
+        string += "-  -  -  -  -  -\n"
         L2 = []
-        for i in nostatus:
-            complex = self.abbr_complex(nostatus[i].complex)
-            unit = nostatus[i].unit
+        for i in self.sorted_dic['No Status (Please Update)']:
+            complex = self.abbr_complex(self.sorted_dic['No Status (Please Update)'][i].complex)
+            unit = self.sorted_dic['No Status (Please Update)'][i].unit
             combined = complex + " " + unit
             L2.append(combined)
             # compile everything in list & add to one line in string
@@ -630,6 +593,9 @@ class vacancy_csv(object):
         string+= "\n"
         string+= "https://forms.gle/ZJminE5umWn9E8YM6"
         string+= "\n"
+        string+= "\n"
+        string+="https://vacantunits.streamlit.app/"
+        string+="\n"
         if is_it_time_baby():
             self.printedmsg = self.beginning + self.printedmsg + string
         else:
@@ -639,7 +605,7 @@ class vacancy_csv(object):
 
     #delete all the old csv files pulled from appfolio
     def skimthefat(self):
-        path = r'C:\Users\Lenovo\PycharmProjects\Vacancy\*.csv'
+        path = r'C:\Users\19097\PycharmProjects\VacancyTextScript\*.csv'
 
         count = 0
         for fname in glob.glob(path):
@@ -683,9 +649,9 @@ class Unit(object):
 #return list of numbers to message
 def numberstomessage():
 
-    # d = {'Victor':'+19098163161','Jian':'+19092101491','Karla':'+19097677208','Brian':'+19097140840',
-    #     'Richard':'+19516639308','Jeff':'+19092228209','Tony':'+16269991519','Hector':'+19094897033',
-    #      'Rick':'+19092541913','Amanda':'+19094861526','Debbie':'+7605141103'
+    # d = {'Victor':'+19098163161','Jian':'+19092101491','Karla':'+19097677208','Tristan':'+19097140840',
+    # 'Richard':'+19516639308','Jeff':'+19092228209','Hector':'+19094897033',
+    # 'Rick':'+19092541913','Amanda':'+19094861526','Debbie':'+17605141103','Megan':'+13237192726','Margi':'+19097056966','Mom':'+19093635659'
     # }
     d = {'Victor':'+19098163161'}
     L = []
@@ -759,7 +725,6 @@ def readtxtfile():
 # print(o1.printedmsg)
 
 call_twilio()
-
 
 
 
