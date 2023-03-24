@@ -529,14 +529,19 @@ class vacancy_csv(object):
                     nested_dict[key] = alphabetize_nested_dict(value)
             return dict(sorted(nested_dict.items(), key=lambda x: natural_sort_key(x[0])))
 
-        #alphabetize everything using that sweet sweet gpt code
-        alph_dic = alphabetize_nested_dict(self.sorted_dic['Rent Ready'])
+        #alphabetize nested dics using that sweet sweet gpt code
+        rentready = alphabetize_nested_dict(self.sorted_dic['Rent Ready'])
+        unitturns = alphabetize_nested_dict(self.sorted_dic['Recently Vacated - Needs Work'])
+        rented = alphabetize_nested_dict(self.sorted_dic['Rented'])
+        newcoach = alphabetize_nested_dict(self.sorted_dic['New Coach/Construction'])
+        emptylot = alphabetize_nested_dict(self.sorted_dic['Empty Lot'])
+        nostatus = alphabetize_nested_dict(self.sorted_dic['No Status (Please Update)'])
 
-        for i in alph_dic:
-            complex = alph_dic[i].complex
-            unit = alph_dic[i].unit
-            askingrent = alph_dic[i].askingrent
-            unittype = alph_dic[i].unittype
+        for i in rentready:
+            complex = rentready[i].complex
+            unit = rentready[i].unit
+            askingrent = rentready[i].askingrent
+            unittype = rentready[i].unittype
             string+= self.abbr_complex(complex) +" "+ unit+ self.abbr_type(unittype)+"- $"+askingrent +"\n"
 
         # for i in self.sorted_dic['Rent Ready']:
@@ -549,13 +554,15 @@ class vacancy_csv(object):
         string+= " \n"
         string+= "Recently Vacated - Needs Work:\n"
         string+= "-  -  -  -  -  -  -  -  -  -  -\n"
-        for i in self.sorted_dic['Recently Vacated - Needs Work']:
-            complex = self.sorted_dic['Recently Vacated - Needs Work'][i].complex
-            unit = self.sorted_dic['Recently Vacated - Needs Work'][i].unit
-            nextsteps = self.sorted_dic['Recently Vacated - Needs Work'][i].notes
-            unittype = self.sorted_dic['Recently Vacated - Needs Work'][i].unittype
+        for i in unitturns:
+            complex = unitturns[i].complex
+            unit = unitturns[i].unit
+            nextsteps = unitturns[i].notes
+            unittype = unitturns[i].unittype
             if nextsteps == "":
                 nextsteps = "What's next?"
+
+
             # string+= self.abbr_complex(complex) +" "+ unit+ self.abbr_type(unittype)+"- "+nextsteps +"\n"
             # string+= self.abbr_complex(complex) +" "+ unit+ self.abbr_type(unittype)+", "
             #March 23 2023 Update: getting rid of unit type to condense space
@@ -565,20 +572,20 @@ class vacancy_csv(object):
         string+= "\nJust Rented:\n"
         string += "-  -  -  -  -  -  -  -  -  -  -\n"
 
-        for i in self.sorted_dic['Rented']:
-            complex = self.sorted_dic['Rented'][i].complex
-            unit = self.sorted_dic['Rented'][i].unit
-            actualrent = self.sorted_dic['Rented'][i].actualrent
-            unittype = self.sorted_dic['Rented'][i].unittype
+        for i in rented:
+            complex = rented[i].complex
+            unit = rented[i].unit
+            actualrent = rented[i].actualrent
+            unittype = rented[i].unittype
             string+= self.abbr_complex(complex) +" "+ unit+ self.abbr_type(unittype)+"- $"+actualrent +"\n"
 
         string+= "\n"
         string += "New Coach/Construction:\n"
         string += "-  -  -  -  -  -  -  -  -  -  -\n"
         L = []
-        for i in self.sorted_dic['New Coach/Construction']:
-            complex = self.abbr_complex(self.sorted_dic['New Coach/Construction'][i].complex)
-            unit = self.sorted_dic['New Coach/Construction'][i].unit
+        for i in newcoach:
+            complex = self.abbr_complex(newcoach[i].complex)
+            unit = newcoach[i].unit
             combined = complex + " "+ unit
             L.append(combined)
             # compile everything in list & add to one line in string
@@ -593,9 +600,9 @@ class vacancy_csv(object):
         string += "Empty Lots:\n"
         string += "-  -  -  -  -  -  -  -  -  -  -\n"
         L = []
-        for i in self.sorted_dic['Empty Lot']:
-            complex = self.abbr_complex(self.sorted_dic['Empty Lot'][i].complex)
-            unit = self.sorted_dic['Empty Lot'][i].unit
+        for i in emptylot:
+            complex = self.abbr_complex(emptylot[i].complex)
+            unit = emptylot[i].unit
             combined = complex + " " + unit
             L.append(combined)
             # compile everything in list & add to one line in string
@@ -609,9 +616,9 @@ class vacancy_csv(object):
         string += "No Status (Pls Update):\n"
         string += "-  -  -  -  -  -  -  -  -  -  -\n"
         L2 = []
-        for i in self.sorted_dic['No Status (Please Update)']:
-            complex = self.abbr_complex(self.sorted_dic['No Status (Please Update)'][i].complex)
-            unit = self.sorted_dic['No Status (Please Update)'][i].unit
+        for i in nostatus:
+            complex = self.abbr_complex(nostatus[i].complex)
+            unit = nostatus[i].unit
             combined = complex + " " + unit
             L2.append(combined)
             # compile everything in list & add to one line in string
