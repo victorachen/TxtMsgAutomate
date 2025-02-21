@@ -54,7 +54,7 @@ def Add_To_Textmsg_Body():
                           'Hitching Post', 'SFH', 'Patrician', 'Wishing Well',\
                       'Avalon','Aladdin','Bonanza']
 
-    SFH = ['Chestnut', 'Elm', '12398 4th', '12993 2nd', 'Reedywoods', 'North Grove', \
+    SFH = ['Chestnut', 'Elm', '12398 4th','Reedywoods', 'North Grove', \
                'Massachusetts', 'Michigan', '906 N 4th', 'Indian School', 'Cottonwood']
 
     # 1a: given a list(row in excel), return whether that excel row is a unit
@@ -91,7 +91,7 @@ def Add_To_Textmsg_Body():
             d = {'Holiday': 'Hol', 'Mt Vista': 'MtV', 'Westwind': 'West', 'Crestview': 'Crest', \
                  'Hitching Post': 'HP', 'SFH': 'SFH', 'Patrician': 'Pat', 'Wishing Well': 'Wish', \
                  'Avalon':'Av', 'Aladdin':'Al', 'Bonanza':'Bon',\
-                 'Chestnut': 'Chestnut', 'Elm': 'Elm', '12398 4th': '12398 4th', '12993 2nd': '12993 2nd',\
+                 'Chestnut': 'Chestnut', 'Elm': 'Elm', '12398 4th': '12398 4th',\
                  'Reedywoods': 'Reedywd', 'North Grove': 'Grove', \
                  'Massachusetts': 'Massachu', 'Michigan': 'Mich', '906 N 4th': '906 N 4th',\
                  'Indian School': 'Indian School', 'Cottonwood': 'Cottonwd'
@@ -178,12 +178,12 @@ class vacancy_csv(object):
         self.properties = ['Holiday', 'Mt Vista', 'Westwind', 'Crestview',\
                             'Hitching Post', 'SFH', 'Patrician','Wishing Well',\
                            'Avalon','Aladdin','Bonanza']
-        self.SFH = ['Chestnut', 'Elm', '12398 4th', '12993 2nd', 'Reedywoods', 'North Grove', \
+        self.SFH = ['Chestnut', 'Elm', '12398 4th', 'Reedywoods', 'North Grove', \
                     'Massachusetts', 'Michigan', '906 N 4th', 'Indian School', 'Cottonwood']
         self.dic = {'Holiday':{},'Mt Vista': {},'Westwind':{}, \
                     'Avalon':{}, 'Aladdin':{}, 'Bonanza':{},\
                     'Crestview':{},'Hitching Post':{},'SFH':{},'Patrician':{},'Wishing Well':{},\
-                    'Chestnut': {}, 'Elm': {}, '12398 4th': {}, '12993 2nd': {}, 'Reedywoods': {}, 'North Grove': {}, \
+                    'Chestnut': {}, 'Elm': {}, '12398 4th': {}, 'Reedywoods': {}, 'North Grove': {}, \
                     'Massachusetts': {}, 'Michigan': {}, '906 N 4th': {}, 'Indian School': {}, 'Cottonwood': {}}
         # self.statuslist = ['Trash Need To Be Cleaned Out','Undergoing Turnover',\
         #                    'Need Appliances','Need Cleaning','Rent Ready','Rented',\
@@ -221,7 +221,7 @@ class vacancy_csv(object):
 
     def is_SFH(self, string):
         # given a string, return whether it is one of our SFHs
-        SFH_list = ['Chestnut', 'Elm', '12398 4th', '12993 2nd', 'Reedywoods', 'North Grove', \
+        SFH_list = ['Chestnut', 'Elm', '12398 4th', 'Reedywoods', 'North Grove', \
                     'Massachusetts', 'Michigan', '906 N 4th', 'Indian School', 'Cottonwood']
         for i in SFH_list:
             if i in string:
@@ -247,25 +247,70 @@ class vacancy_csv(object):
             if i in string:
                 return True
         return False
-    def which_prop(self,string):
-        #given a long string with prop hidden inside, return which property it is!
+
+    #2.21.25 update: case sensitive
+
+    def which_prop(self, string):
+        if not string:  # Catch empty strings
+            return None
+
+        string_lower = string.lower().strip()  # Convert to lowercase and remove spaces
+
         for i in self.properties:
-            if i in string:
+            if i.lower() in string_lower:
                 return i
         for x in self.SFH:
-            if x in string:
+            if x.lower() in string_lower:
                 return x
-        return None
+
+        print(f"which_prop() returning None for unexpected string: '{string}'")
+        return None  # Change this to a default value if needed
+
+    #2.21.25 getting rid of old which_prop function to make room for case sensitive handling one (above)
+    # def which_prop(self,string):
+    #     #given a long string with prop hidden inside, return which property it is!
+    #     for i in self.properties:
+    #         if i in string:
+    #             return i
+    #     for x in self.SFH:
+    #         if x in string:
+    #             return x
+    #     print(f"which_prop() returning None for string: {string}")
+    #     return None
+
     def create_dic(self):
         for i in self.data:
             if len(i)>2:
                 unit = i[0]
                 prop = i[-1]
+
+                #2.21.25 debugging Chatgpt
+                if not prop:  # If prop is empty, log and continue
+                    print(f"Skipping entry due to missing property name: {i}")
+                    continue
+                # 2.21.25 debugging
+
                 if self.is_unit(unit) and self.is_prop(prop):
+
+                    # 2.21.25 debugging Chatgpt
+                    prop_name = self.which_prop(prop)
+                    if prop_name is None:  # Catch None before updating dict
+                        print(f"Warning: No match found for property '{prop}', skipping entry.")
+                        continue
+                    # 2.21.25 debugging Chatgpt
+
                     # print(unit,prop)
                     obj = Unit(self.which_prop(prop), unit)
                     self.dic[self.which_prop(prop)].update({unit:obj})
                 if self.is_SFH(unit):
+
+                    # 2.21.25 debugging Chatgpt
+                    prop_name = self.which_prop(prop)
+                    if prop_name is None:
+                        print(f"Warning: No match found for SFH property '{prop}', skipping entry.")
+                        continue
+                    # 2.21.25 debugging Chatgpt
+
                     obj = Unit(self.which_prop(prop), 'House')
                     self.dic[self.which_prop(prop)].update({'House': obj})
 
@@ -413,7 +458,7 @@ class vacancy_csv(object):
         d = {'Holiday':'Hol', 'Mt Vista':'MtV', 'Westwind':'West', 'Crestview':'Crest', \
              'Avalon':'Av', 'Aladdin':'Al', 'Bonanza':'Bon',\
          'Hitching Post':'HP', 'SFH':'SFH', 'Patrician':'Pat','Wishing Well':'Wish',\
-             'Chestnut': 'Chestnut', 'Elm': 'Elm', '12398 4th': '12398 4th', '12993 2nd': '12993 2nd', 'Reedywoods': 'Reedywd', 'North Grove': 'Grove', \
+             'Chestnut': 'Chestnut', 'Elm': 'Elm', '12398 4th': '12398 4th', 'Reedywoods': 'Reedywd', 'North Grove': 'Grove', \
              'Massachusetts': 'Massachu', 'Michigan': 'Mich', '906 N 4th': '906 N 4th', 'Indian School': 'Indian School', 'Cottonwood': 'Cottonwd'
              }
         return d[complex]
@@ -616,9 +661,7 @@ class vacancy_csv(object):
         string+= "\n"
         string+= "https://forms.gle/ZJminE5umWn9E8YM6"
         string+= "\n"
-        string+= "\n"
-        string+="https://vacantunits.streamlit.app/"
-        string+="\n"
+
         if is_it_time_baby():
             self.printedmsg = self.beginning + self.printedmsg + string
         else:
@@ -672,9 +715,10 @@ class Unit(object):
 #return list of numbers to message
 def numberstomessage():
 
-    d = {'Victor':'+19098163161','Jian':'+19092101491','Karla':'+19097677208','Tristan':'+19097140840',
+    d = {'Victor':'+19098163161','Jian':'+19092101491','Karla':'+19097677208','Bathshua':'+19097140840',
     'Richard':'+19516639308','Jeff':'+19092228209','Hector':'+19094897033',
-    'Rick':'+19092541913','Amanda':'+19094861526','Debbie':'+17605141103','Megan':'+13237192726','Margi':'+19097056966','Mom':'+19093635659'
+    'Rick':'+19092541913','Debbie':'+17605141103','Megan':'+13237192726','Alexandra':'+19513509693',
+    'Brian':'+19092678862'
     }
     # d = {'Victor':'+19098163161'}
     L = []
