@@ -229,6 +229,12 @@ class vacancy_csv(object):
         # NEW: a second SMS body that the website does NOT read
         self.printedmsg_number2 = ""
 
+        # Internal parts for SMS #2 (so we can safely insert "rent ready" later
+        # WITHOUT touching self.printedmsg at all).
+        self._sms2_update_lines = []   # e.g. ["Victor updated Bon 48", ...]
+        self._sms2_rent_ready_block = ""  # built after sorted_dic()
+        self._sms2_footer = "Full vacancy details can be found on the new website!: https://vacant.streamlit.app/"
+
         self.tosendornot = False
         self.data = []
         self.d = {}
@@ -251,7 +257,9 @@ class vacancy_csv(object):
         self.create_dic()
         self.gsheets()
         self.sorted_dic()
+        self._build_sms2_rent_ready_block()   # <-- safe: uses sorted_dic, does NOT touch printedmsg
         self.compare()
+        self._finalize_sms2()                # <-- compose printedmsg_number2 (still does NOT touch printedmsg)
         self.txtmsg()
         self.firestore()
         self.skimthefat()
@@ -406,6 +414,7 @@ class vacancy_csv(object):
         if oldstamps == newstamps:
             print('nothing to update here!')
             self.tosendornot = False
+            self.updated_lines = []
             return False
 
         if not oldstamps == newstamps:
@@ -413,6 +422,7 @@ class vacancy_csv(object):
             self.tosendornot = True
 
             # find the index of last matching timestamp,
+            ind = -1
             for i in oldstamps:
                 try:
                     if len(i[0]) > 0:
@@ -466,14 +476,12 @@ class vacancy_csv(object):
             else:
                 s += prop + " " + space
 
+        # This is the "website mapped" message. DO NOT change downstream behavior.
         self.printedmsg = s + '\n' + self.printedmsg
 
         # ============================
-        # NEW: build printedmsg_number2 (SMS-only; website should ignore)
-        # Format:
-        #   Victor updated Bon 48
-        #
-        #   further vacancy details can be found on our site: vacant.steamlit.app
+        # SMS #2 prep (build update lines ONLY here)
+        # We'll insert "Current Rent Ready Units" later after sorted_dic is available.
         # ============================
         lines = []
         seen = set()
@@ -496,10 +504,7 @@ class vacancy_csv(object):
                 seen.add(line)
                 lines.append(line)
 
-        if lines:
-            self.printedmsg_number2 = "\n".join(lines) + "\n\n" + \
-                                     "All vacancy details can now be found on the new website!: https://vacant.streamlit.app/"
-
+        self._sms2_update_lines = lines  # store for later composition
         return None
 
     def sorted_dic(self):
@@ -532,6 +537,83 @@ class vacancy_csv(object):
         else:
             s2 = "(" + L[0] + "/" + L[1] + ")"
         return s2
+
+    # -----------------------------
+    # NEW: SMS #2 "Current Rent Ready Units" builder
+    # (This is SMS-only. It NEVER touches self.printedmsg.)
+    # -----------------------------
+    def _build_sms2_rent_ready_block(self, max_lines=40):
+        """
+        Builds a compact list of current Rent Ready units for SMS #2.
+        This uses self.sorted_dic['Rent Ready'] and is safe for the website mapping,
+        because it does NOT touch self.printedmsg at all.
+        """
+        try:
+            rentready = self.sorted_dic.get('Rent Ready', {})
+        except Exception:
+            rentready = {}
+
+        if not rentready or len(rentready) == 0:
+            self._sms2_rent_ready_block = "Current Rent Ready Units:\n(None)\n"
+            return self._sms2_rent_ready_block
+
+        def natural_sort_key(s):
+            return [int(x) if x.isdigit() else x.lower() for x in re.split(r'(\d+)', s)]
+
+        # rentready is a dict of key -> Unit(obj). We'll sort by the dict key (which looks like "Complex Unit")
+        items = sorted(rentready.items(), key=lambda kv: natural_sort_key(kv[0]))
+
+        lines = ["Current Rent Ready Units:"]
+        count = 0
+        for _, obj in items:
+            count += 1
+            if count > max_lines:
+                remaining = max(0, len(items) - max_lines)
+                lines.append(f"...and {remaining} more")
+                break
+
+            complex_abbr = self.abbr_complex(obj.complex)
+            unit = obj.unit
+            # Keep it readable; include bed/bath + asking rent (same style as your Rent Ready section)
+            try:
+                type_part = self.abbr_type(obj.unittype)
+            except Exception:
+                type_part = "(?/?)"
+            asking = str(obj.askingrent).strip()
+            if asking == "" or asking.lower() == "empty":
+                asking = "?"
+            lines.append(f"- {complex_abbr} {unit} {type_part} - ${asking}")
+
+        self._sms2_rent_ready_block = "\n".join(lines) + "\n"
+        return self._sms2_rent_ready_block
+
+    def _finalize_sms2(self):
+        """
+        Compose self.printedmsg_number2 as:
+
+          (1) "Victor updated ..."
+          (1.5) Current Rent Ready Units: ...
+          (2) website link footer
+
+        IMPORTANT: This does NOT change self.printedmsg (the website-mapped SMS #1).
+        """
+        parts = []
+
+        # (1) update lines (only if we actually have updates)
+        if self._sms2_update_lines:
+            parts.append("\n".join(self._sms2_update_lines))
+
+        # (1.5) rent ready block (always include if we have updates; optional otherwise)
+        # If you want it ALWAYS (even with no updates), remove the if wrapper.
+        if self._sms2_update_lines and self._sms2_rent_ready_block:
+            parts.append(self._sms2_rent_ready_block.rstrip())
+
+        # (2) footer (only if we have updates; keeps behavior similar to your current SMS #2)
+        if self._sms2_update_lines:
+            parts.append(self._sms2_footer)
+
+        self.printedmsg_number2 = "\n\n".join([p for p in parts if str(p).strip()]) if parts else ""
+        return self.printedmsg_number2
 
     # Oct 5th firestore code baby!
     def firestore(self):
