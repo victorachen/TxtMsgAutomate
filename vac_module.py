@@ -222,7 +222,13 @@ class vacancy_csv(object):
     # returns Data set from AppFolio Vacancy (using def read_csv)
     def __init__(self):
         self.beginning = Add_To_Textmsg_Body()
+
+        # IMPORTANT: keep existing raw text message block for the website mapping
         self.printedmsg = ""
+
+        # NEW: a second SMS body that the website does NOT read
+        self.printedmsg_number2 = ""
+
         self.tosendornot = False
         self.data = []
         self.d = {}
@@ -426,6 +432,9 @@ class vacancy_csv(object):
         return None
 
     def update_announcement(self):
+        # ============================
+        # Existing behavior (DO NOT BREAK)
+        # ============================
         s = """"""
         personlist = []
         for i in self.updated_lines:
@@ -458,6 +467,39 @@ class vacancy_csv(object):
                 s += prop + " " + space
 
         self.printedmsg = s + '\n' + self.printedmsg
+
+        # ============================
+        # NEW: build printedmsg_number2 (SMS-only; website should ignore)
+        # Format:
+        #   Victor updated Bon 48
+        #
+        #   further vacancy details can be found on our site: vacant.steamlit.app
+        # ============================
+        lines = []
+        seen = set()
+
+        for row in self.updated_lines:
+            person = str(row[8]).strip() if len(row) > 8 else ""
+            if not person:
+                person = "Someone"
+
+            if self.is_SFH(row[1]):
+                prop_abbr = self.abbr_complex(row[1].replace(" House", ""))
+                unit_disp = "House"
+            else:
+                prop_abbr = self.abbr_complex(row[1])
+                unit_norm = normalize_special_unit(row[2], row[1]) or row[2]
+                unit_disp = str(unit_norm).strip()
+
+            line = f"{person} updated {prop_abbr} {unit_disp}"
+            if line not in seen:
+                seen.add(line)
+                lines.append(line)
+
+        if lines:
+            self.printedmsg_number2 = "\n".join(lines) + "\n\n" + \
+                                     "All vacancy details can now be found on the new website!: https://vacant.streamlit.app/"
+
         return None
 
     def sorted_dic(self):
@@ -726,6 +768,7 @@ def numberstomessage():
          'Richard': '+19516639308', 'Jeff': '+19092228209', 'Hector': '+19094897033',
          'Rick': '+19092541913', 'Debbie': '+17605141103', 'Megan': '+13237192726', 'Alexandra': '+19513509693',
          'Brian': '+19092678862'}
+    # d = {'Victor': '+19098163161'}
     L = []
     for i in d:
         L.append(d[i])
@@ -743,19 +786,38 @@ def call_twilio():
     auth_token = readtxtfile()['token']
     client = Client(account_sid, auth_token)
     o1 = vacancy_csv()
+
+    # IMPORTANT: keep this as the "rawtxtmsg" that your other script/site relies on
     text = o1.printedmsg
+
+    # NEW: second message (SMS-only; do NOT let the site read/map this)
+    text2 = o1.printedmsg_number2
+
     print(text)
+    print("----- SMS #2 -----")
+    print(text2)
+
     numbers_to_message = L
     print(L)
 
     if o1.tosendornot or are_there_new_vacs():
         for number in numbers_to_message:
+            # SMS #1 (unchanged behavior)
             client.messages.create(
                 body=text,
                 from_=readtxtfile()['from'],
                 to=number
             )
-        print('txt msg sent:')
+
+            # SMS #2 (new behavior) - only if we actually built it
+            if text2.strip():
+                client.messages.create(
+                    body=text2,
+                    from_=readtxtfile()['from'],
+                    to=number
+                )
+
+        print('txt msg(s) sent:')
     else:
         print('txt msg should not have sent: there are no updates so no need for a txt msg')
     return 'nothing'
