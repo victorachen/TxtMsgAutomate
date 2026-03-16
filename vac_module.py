@@ -1,5 +1,6 @@
 # To do: include vacant pad category
 # communicate to managers: statuses can be changed
+
 import ezgmail, os, csv, ezsheets, glob, shutil, re
 from datetime import date, datetime, timedelta
 from twilio.rest import Client
@@ -7,58 +8,188 @@ from pathlib import Path
 
 os.chdir(r'C:\Users\19097\PycharmProjects\VacancyTextScript')
 
-# =========================
+# ============================================================
+# DEBUG / TEST TOGGLES
+# ============================================================
+# normal behavior should be False, False, False
+DEBUG_MODE = False
+FORCE_SEND_DEBUG = False            # True = send regardless of compare()/new vacancy trigger
+DEBUG_SEND_TO_VICTOR_ONLY = True    # True = only text Victor for testing
+
+
+def dbg(msg):
+    if DEBUG_MODE:
+        print(msg)
+
+
+# ============================================================
 # Special Units Registry
-# =========================
-# Keyed by canonical property name exactly as used in self.properties (e.g., 'Westwind')
-# Values are canonical, display-ready unit strings.
+# ============================================================
 SPECIAL_UNITS = {
     'Westwind': ['Apt B'],
-    # Add more as needed, e.g.:
-    # 'Westwind': ['Apt A', 'Apt B'],
-    # 'Holiday': ['Office'],
 }
 
+# ============================================================
+# Global Property Lists
+# ============================================================
+ALL_PROPERTIES = [
+    'Holiday', 'Mt Vista', 'Westwind', 'Crestview',
+    'Hitching Post', 'SFH', 'Patrician', 'Wishing Well',
+    'Avalon', 'Aladdin', 'Bonanza'
+]
+
+SFH_LIST = [
+    'Chestnut', 'Elm', '12398 4th', 'Reedywoods', 'North Grove',
+    'Massachusetts', 'Michigan', '906 N 4th', 'Indian School', 'Cottonwood'
+]
+
+# ============================================================
+# Helpers
+# ============================================================
 def normalize_special_unit(raw_unit: str, prop_name: str):
-    """
-    Normalize input like 'apt b', 'APT  B', 'aptb' to canonical 'Apt B' (if registered).
-    Returns canonical unit string if recognized for prop_name, else None.
-    """
     if not raw_unit or not prop_name:
         return None
+
     s = str(raw_unit).strip().lower().replace(' ', '')
 
-    # direct match against registered special units for this property
     for special in SPECIAL_UNITS.get(prop_name, []):
         target = special.lower().replace(' ', '')
         if s == target:
             return special
 
-    # convenience aliases for Westwind/Apt B
     if prop_name == 'Westwind' and s in {'aptb', 'apartmentb', 'apt_b'}:
         return 'Apt B'
 
     return None
 
-# =========================
-# Firestore field-path escaper
-# =========================
+
 def fs_field_path(key: str) -> str:
-    """
-    Firestore's update() parses dict keys as *field paths*. Keys containing spaces or other
-    non-alphanumerics must be escaped with backticks.
-    """
-    k = str(key).replace('`', r'\`')
+    k = str(key)
     if re.match(r'^[A-Za-z_][A-Za-z0-9_]*$', k):
         return k
-    return f'`{k}`'
+    return f'{k}'
 
 
-# Aug 6th: 2022 -- we want to add functionality where: if there is a new vacant unit in AppFolio,
-# the code sends out a text msg alert to everyone
-# we are going to try to do as much of this outside the class as possible (waay too messy inside the class)
+def natural_sort_key(s):
+    return [int(x) if x.isdigit() else x.lower() for x in re.split(r'(\d+)', str(s))]
+
+
+def find_property_in_text(text, all_properties, sfh_list):
+    if not text:
+        return None
+
+    text_lower = str(text).lower()
+
+    for p in all_properties:
+        if p.lower() in text_lower:
+            return p
+
+    for s in sfh_list:
+        if s.lower() in text_lower:
+            return s
+
+    return None
+
+
+def looks_like_standard_unit(s):
+    if s is None:
+        return False
+    return re.match(r'^\d{1,4}[A-Za-z]?$', str(s).strip()) is not None
+
+
+def abbr_propname(longpropname):
+    d = {
+        'Holiday': 'Hol', 'Mt Vista': 'MtV', 'Westwind': 'West', 'Crestview': 'Crest',
+        'Hitching Post': 'HP', 'SFH': 'SFH', 'Patrician': 'Pat', 'Wishing Well': 'Wish',
+        'Avalon': 'Av', 'Aladdin': 'Al', 'Bonanza': 'Bon',
+        'Chestnut': 'Chestnut', 'Elm': 'Elm', '12398 4th': '12398 4th',
+        'Reedywoods': 'Reedywd', 'North Grove': 'Grove',
+        'Massachusetts': 'Massachu', 'Michigan': 'Mich', '906 N 4th': '906 N 4th',
+        'Indian School': 'Indian School', 'Cottonwood': 'Cottonwd'
+    }
+    return d.get(longpropname, longpropname)
+
+
+def is_sfh_name(name):
+    if not name:
+        return False
+    name_lower = str(name).lower()
+    return any(x.lower() in name_lower for x in SFH_LIST)
+
+
+def parse_appfolio_csv(filepath):
+    """
+    Current AppFolio layout:
+    - row 0 = header
+    - group rows like: ['-> Bonanza ...', '', '', ...]
+    - detail rows:
+        col 0 = ''
+        col 1 = unit
+        col 15 = property
+    """
+    with open(filepath, newline='', encoding='utf-8-sig') as f:
+        reader = csv.reader(f)
+        rows = list(reader)
+
+    parsed = []
+    current_group_prop = None
+
+    for idx, row in enumerate(rows):
+        if not row:
+            continue
+
+        first = str(row[0]).strip() if len(row) > 0 else ''
+        unit_col = str(row[1]).strip() if len(row) > 1 else ''
+        prop_col = str(row[15]).strip() if len(row) > 15 else ''
+
+        if idx == 0 and first == 'Group':
+            continue
+
+        if first.startswith('->'):
+            current_group_prop = find_property_in_text(first, ALL_PROPERTIES, SFH_LIST)
+            continue
+
+        if unit_col in {'', 'Total'}:
+            continue
+
+        prop_name = find_property_in_text(prop_col, ALL_PROPERTIES, SFH_LIST) or current_group_prop
+
+        if not prop_name:
+            continue
+
+        if prop_name in SFH_LIST or is_sfh_name(prop_name) or is_sfh_name(prop_col):
+            parsed.append({
+                'prop_name': prop_name,
+                'unit': 'House',
+                'raw_row': row
+            })
+            continue
+
+        norm_special = normalize_special_unit(unit_col, prop_name)
+        final_unit = norm_special if norm_special else unit_col
+
+        if looks_like_standard_unit(final_unit) or norm_special:
+            parsed.append({
+                'prop_name': prop_name,
+                'unit': str(final_unit).strip(),
+                'raw_row': row
+            })
+
+    return parsed
+
+
+def summarize_nonzero_property_counts(dic_obj):
+    pieces = []
+    for k, v in dic_obj.items():
+        if len(v) > 0:
+            pieces.append(f"{abbr_propname(k)}={len(v)}")
+    return ", ".join(pieces) if pieces else "(none)"
+
+
+# ============================================================
+# New vacancy alert block
+# ============================================================
 def Add_To_Textmsg_Body():
-    # first: pull both csv's and store data in lists
     today = date.today()
     yesterday = today - timedelta(days=1)
     path = r'C:\Users\19097\PycharmProjects\VacancyTextScript\module_update'
@@ -66,150 +197,64 @@ def Add_To_Textmsg_Body():
     def download_csvs():
         ezgmail.init()
         thread = ezgmail.search('Batcave located in vacancy')
-        # (1) Download the most recent vacancy csv
+        if len(thread) < 2:
+            raise Exception("Not enough Gmail threads found for today/yesterday vacancy CSV download.")
         thread[0].messages[0].downloadAllAttachments(downloadFolder=path)
-        # (2) Download yesterday's csv
         thread[1].messages[0].downloadAllAttachments(downloadFolder=path)
 
-    # after it's all said and done, clear everything from the "module_update" folder
     def clear_downloadfolder():
-        folder = path
-        for filename in os.listdir(folder):
-            file_path = os.path.join(folder, filename)
+        removed = 0
+        for filename in os.listdir(path):
+            file_path = os.path.join(path, filename)
             try:
                 if os.path.isfile(file_path) or os.path.islink(file_path):
                     os.unlink(file_path)
+                    removed += 1
                 elif os.path.isdir(file_path):
                     shutil.rmtree(file_path)
+                    removed += 1
             except Exception as e:
-                print('Failed to delete %s. Reason: %s' % (file_path, e))
+                dbg(f"[DBG] clear_downloadfolder fail: {e}")
+        dbg(f"[DBG] module_update cleared: {removed} item(s)")
 
-    # helper function: given a date, scrape through gmail to find the corresponding csv file
-    # --> and then spit that csv file data into a list (returned)
     def extract_csv_data(date_obj):
-        firsthalf = r'C:\Users\19097\PycharmProjects\VacancyTextScript\module_update\unit_vacancy_detail-'
-        secondhalf = str(date_obj).replace('-', '') + '.csv'
-        filename = firsthalf + secondhalf
-        file = open(filename, newline='')
-        reader = csv.reader(file)
-        data = list(reader)
-        return data
+        filename = (
+            r'C:\Users\19097\PycharmProjects\VacancyTextScript\module_update\unit_vacancy_detail-'
+            + str(date_obj).replace('-', '')
+            + '.csv'
+        )
+        parsed = parse_appfolio_csv(filename)
+        dbg(f"[DBG] parsed {os.path.basename(filename)} -> {len(parsed)} units")
+        return parsed
 
-    all_properties = ['Holiday', 'Mt Vista', 'Westwind', 'Crestview',
-                      'Hitching Post', 'SFH', 'Patrician', 'Wishing Well',
-                      'Avalon', 'Aladdin', 'Bonanza']
-
-    SFH = ['Chestnut', 'Elm', '12398 4th', 'Reedywoods', 'North Grove',
-           'Massachusetts', 'Michigan', '906 N 4th', 'Indian School', 'Cottonwood']
-
-    # 1a: given a row (list), return whether that csv row is a unit (handles special units like 'Apt B')
-    def isunit(row):
-        if len(row) < 2:
-            return False
-
-        unit_str = str(row[0]).strip()
-        prop_address = str(row[-1])
-
-        # find which property this row belongs to
-        def which_prop_from_address(addr):
-            for p in all_properties:
-                if p in addr:
-                    return p
-            for sfh in SFH:
-                if sfh in addr:
-                    return 'SFH'
-            return None
-
-        prop_name = which_prop_from_address(prop_address)
-
-        # numeric-ish acceptor (legacy)
-        def looks_like_standard_unit(s):
-            return re.match(r'^\d{1,4}[A-Za-z]?$', s.strip()) is not None
-
-        # NEW: allow registered special units (e.g., 'Apt B' at Westwind)
-        is_special = False
-        if prop_name:
-            normalized = normalize_special_unit(unit_str, prop_name)
-            if normalized:
-                is_special = True
-
-        # SFH path
-        is_sfh = any(s in prop_address for s in SFH) and (len(row) > 7)
-
-        # tie back to your props to avoid false positives
-        in_known_prop = any(p in prop_address for p in all_properties)
-
-        return ((looks_like_standard_unit(unit_str) or is_special) and in_known_prop) or is_sfh
-
-    # 2a: todays_csvoutput --> strips --> todays_vacunits
-    def extract_vacunits(csvoutput):
-
-        # Helper: given a long address list "Hitching Post - 34642 Yucaipa Blvd Yucaipa, CA 92399", abbreviate to "HP"
-        def abbr_propname(longpropname):
-            d = {'Holiday': 'Hol', 'Mt Vista': 'MtV', 'Westwind': 'West', 'Crestview': 'Crest',
-                 'Hitching Post': 'HP', 'SFH': 'SFH', 'Patrician': 'Pat', 'Wishing Well': 'Wish',
-                 'Avalon': 'Av', 'Aladdin': 'Al', 'Bonanza': 'Bon',
-                 'Chestnut': 'Chestnut', 'Elm': 'Elm', '12398 4th': '12398 4th',
-                 'Reedywoods': 'Reedywd', 'North Grove': 'Grove',
-                 'Massachusetts': 'Massachu', 'Michigan': 'Mich', '906 N 4th': '906 N 4th',
-                 'Indian School': 'Indian School', 'Cottonwood': 'Cottonwd'
-                 }
-            for i in d:
-                if i in longpropname:
-                    return d[i]
-            return 'Uh Oh, No Matches!'
-
-        def is_SFH(longpropname):
-            for i in SFH:
-                if i in longpropname:
-                    return True
-            return False
-
+    def extract_vacunits(parsed_rows):
         vacant_list = []
-        for row in csvoutput:
-            if isunit(row):
-                if is_SFH(row[-1]):
-                    space_num = ''
-                else:
-                    space_num = row[0]
-                prop_name = abbr_propname(row[-1])
-                combined = prop_name + ' ' + str(space_num).strip()
-                vacant_list.append(combined)
+        for item in parsed_rows:
+            prop_name = item['prop_name']
+            unit = item['unit']
+            combined = abbr_propname(prop_name) + (' ' + unit if unit != 'House' else '')
+            vacant_list.append(combined.strip())
         return vacant_list
 
-    # 3A: compares today's and yesterday's vacant lists; returns third list of new vacants (in string format)
     def compare(today_lst, yest_lst):
-        new_vacants = []
-        string = ''
-        for unit in today_lst:
-            if unit not in yest_lst:
-                new_vacants.append(unit)
-        for i in new_vacants:
-            if new_vacants.index(i) == 0:
-                string = i + string
-            else:
-                string = i + ', ' + string
-        return string
-
-    # 3B:
-    def are_there_any_new_vacants(today_lst, yest_lst):
-        return compare(today_lst, yest_lst) != ''
+        new_vacants = [u for u in today_lst if u not in yest_lst]
+        return ", ".join(new_vacants)
 
     download_csvs()
-    todays_csvoutput = extract_csv_data(today)
-    yest_csvoutput = extract_csv_data(yesterday)
-    todays_vacunits = extract_vacunits(todays_csvoutput)
-    yest_vacunits = extract_vacunits(yest_csvoutput)
+    todays_parsed = extract_csv_data(today)
+    yest_parsed = extract_csv_data(yesterday)
+    todays_vacunits = extract_vacunits(todays_parsed)
+    yest_vacunits = extract_vacunits(yest_parsed)
     clear_downloadfolder()
-    if are_there_any_new_vacants(todays_vacunits, yest_vacunits):
-        text_PtA = "New Vacancy! (Plz Update): "
-        text_PtB = compare(todays_vacunits, yest_vacunits)
-        return text_PtA + text_PtB + """\n"""
+
+    new_vacants_string = compare(todays_vacunits, yest_vacunits)
+    dbg(f"[DBG] new vacancies found: {new_vacants_string if new_vacants_string else '(none)'}")
+
+    if new_vacants_string:
+        return "New Vacancy! (Plz Update): " + new_vacants_string + "\n"
     return ""
 
 
-# we don't want this to run every 5 minutes if there is a vacancy!
-# so we want this to run only if it is between the times of 8am and 8:05 am (Helper Below)
 def is_it_time_baby():
     import datetime as _dt
     now = _dt.datetime.now()
@@ -219,47 +264,44 @@ def is_it_time_baby():
 
 
 class vacancy_csv(object):
-    # returns Data set from AppFolio Vacancy (using def read_csv)
     def __init__(self):
         self.beginning = Add_To_Textmsg_Body()
 
-        # IMPORTANT: keep existing raw text message block for the website mapping
         self.printedmsg = ""
-
-        # NEW: a second SMS body that the website does NOT read
         self.printedmsg_number2 = ""
 
-        # Internal parts for SMS #2 (so we can safely insert "rent ready" later
-        # WITHOUT touching self.printedmsg at all).
-        self._sms2_update_lines = []   # e.g. ["Victor updated Bon 48", ...]
-        self._sms2_rent_ready_block = ""  # built after sorted_dic()
+        self._sms2_update_lines = []
+        self._sms2_rent_ready_block = ""
         self._sms2_footer = "Full vacancy details can be found on the new website!: https://vacant.streamlit.app/"
 
         self.tosendornot = False
         self.data = []
-        self.d = {}
+        self.parsed_units = []
         self.vac_list = []
-        self.properties = ['Holiday', 'Mt Vista', 'Westwind', 'Crestview',
-                           'Hitching Post', 'SFH', 'Patrician', 'Wishing Well',
-                           'Avalon', 'Aladdin', 'Bonanza']
-        self.SFH = ['Chestnut', 'Elm', '12398 4th', 'Reedywoods', 'North Grove',
-                    'Massachusetts', 'Michigan', '906 N 4th', 'Indian School', 'Cottonwood']
-        self.dic = {'Holiday': {}, 'Mt Vista': {}, 'Westwind': {},
-                    'Avalon': {}, 'Aladdin': {}, 'Bonanza': {},
-                    'Crestview': {}, 'Hitching Post': {}, 'SFH': {}, 'Patrician': {}, 'Wishing Well': {},
-                    'Chestnut': {}, 'Elm': {}, '12398 4th': {}, 'Reedywoods': {}, 'North Grove': {},
-                    'Massachusetts': {}, 'Michigan': {}, '906 N 4th': {}, 'Indian School': {}, 'Cottonwood': {}}
-        self.statuslist = ['Rent Ready', 'Recently Vacated - Needs Work', 'Rented',
-                           'New Coach/Construction', 'Empty Lot', 'No Status (Please Update)']
+        self.properties = ALL_PROPERTIES[:]
+        self.SFH = SFH_LIST[:]
+        self.dic = {
+            'Holiday': {}, 'Mt Vista': {}, 'Westwind': {},
+            'Avalon': {}, 'Aladdin': {}, 'Bonanza': {},
+            'Crestview': {}, 'Hitching Post': {}, 'SFH': {}, 'Patrician': {}, 'Wishing Well': {},
+            'Chestnut': {}, 'Elm': {}, '12398 4th': {}, 'Reedywoods': {}, 'North Grove': {},
+            'Massachusetts': {}, 'Michigan': {}, '906 N 4th': {}, 'Indian School': {}, 'Cottonwood': {}
+        }
+        self.statuslist = [
+            'Rent Ready', 'Recently Vacated - Needs Work', 'Rented',
+            'New Coach/Construction', 'Empty Lot', 'No Status (Please Update)'
+        ]
+
         self.ss = ezsheets.Spreadsheet('1Jn3vSrRxB3j1oZab3QZd1gnFczyndmLEbeUqn_JaEkU')
+
         self.scrapegmail()
         self.read_csv()
         self.create_dic()
         self.gsheets()
-        self.sorted_dic()
-        self._build_sms2_rent_ready_block()   # <-- safe: uses sorted_dic, does NOT touch printedmsg
+        self.sorted_dic_func()
+        self._build_sms2_rent_ready_block()
         self.compare()
-        self._finalize_sms2()                # <-- compose printedmsg_number2 (still does NOT touch printedmsg)
+        self._finalize_sms2()
         self.txtmsg()
         self.firestore()
         self.skimthefat()
@@ -267,94 +309,72 @@ class vacancy_csv(object):
     def scrapegmail(self):
         ezgmail.init()
         thread = ezgmail.search('Batcave located in vacancy')
-        thread[0].messages[0].downloadAllAttachments(downloadFolder=r'C:\Users\19097\PycharmProjects\VacancyTextScript')
-        return None
+        if len(thread) == 0:
+            raise Exception("No Gmail threads found for vacancy CSV download.")
+        thread[0].messages[0].downloadAllAttachments(
+            downloadFolder=r'C:\Users\19097\PycharmProjects\VacancyTextScript'
+        )
 
     def read_csv(self):
-        s1 = "unit_vacancy_detail-"
-        today = date.today()
-        s2 = str(today).replace('-', '') + '.csv'
-        s3 = s1 + s2
-        file = open(s3, newline='')
-        reader = csv.reader(file)
-        self.data = list(reader)
+        s3 = "unit_vacancy_detail-" + str(date.today()).replace('-', '') + '.csv'
+        with open(s3, newline='', encoding='utf-8-sig') as file:
+            reader = csv.reader(file)
+            self.data = list(reader)
+
+        self.parsed_units = parse_appfolio_csv(s3)
+
+        dbg(f"[DBG] CSV rows={len(self.data)} | parsed units={len(self.parsed_units)}")
         return self.data
 
     def is_SFH(self, string):
-        SFH_list = ['Chestnut', 'Elm', '12398 4th', 'Reedywoods', 'North Grove',
-                    'Massachusetts', 'Michigan', '906 N 4th', 'Indian School', 'Cottonwood']
-        for i in SFH_list:
-            if i in string:
+        if not string:
+            return False
+        string_lower = str(string).lower()
+        for i in self.SFH:
+            if i.lower() in string_lower:
                 return True
         return False
 
     def is_unit(self, unit_str, prop_name=None):
-        """
-        Accepts standard numeric units (e.g., 12, 12A) OR registered special units (e.g., 'Apt B' at Westwind).
-        prop_name can be passed if known for special-unit matching.
-        """
         if not unit_str:
             return False
         s = str(unit_str).strip()
         if re.match(r'^\d{1,4}[A-Za-z]?$', s):
             return True
-        if prop_name:
-            if normalize_special_unit(s, prop_name):
-                return True
-        else:
-            for p in SPECIAL_UNITS:
-                if normalize_special_unit(s, p):
-                    return True
+        if prop_name and normalize_special_unit(s, prop_name):
+            return True
         return False
 
     def is_prop(self, string):
-        for i in self.properties:
-            if i in string:
-                return True
-        return False
+        if not string:
+            return False
+        return find_property_in_text(string, self.properties, self.SFH) is not None
 
-    # 2.21.25 update: case sensitive
     def which_prop(self, string):
         if not string:
             return None
-        string_lower = string.lower().strip()
-        for i in self.properties:
-            if i.lower() in string_lower:
-                return i
-        for x in self.SFH:
-            if x.lower() in string_lower:
-                return x
-        print(f"which_prop() returning None for unexpected string: '{string}'")
-        return None
+        return find_property_in_text(string, self.properties, self.SFH)
 
     def create_dic(self):
-        for i in self.data:
-            if len(i) > 2:
-                unit_raw = i[0]
-                prop = i[-1]
+        created_count = 0
+        duplicate_count = 0
 
-                if not prop:
-                    print(f"Skipping entry due to missing property name: {i}")
-                    continue
+        for item in self.parsed_units:
+            prop_name = item['prop_name']
+            unit = item['unit']
 
-                prop_name = self.which_prop(prop)
-                if prop_name is None:
-                    print(f"Warning: No match found for property '{prop}', skipping entry.")
-                    continue
+            if prop_name not in self.dic:
+                continue
 
-                # Normalize special units (e.g., 'apt b' -> 'Apt B') if applicable
-                normalized_special = normalize_special_unit(unit_raw, prop_name)
-                unit = normalized_special if normalized_special else str(unit_raw).strip()
+            if unit in self.dic[prop_name]:
+                duplicate_count += 1
 
-                # Standard/unit path
-                if self.is_unit(unit, prop_name) and self.is_prop(prop):
-                    obj = Unit(prop_name, unit)
-                    self.dic[prop_name].update({unit: obj})
+            obj = Unit(prop_name, unit)
+            self.dic[prop_name][unit] = obj
+            created_count += 1
 
-                # SFH path
-                if self.is_SFH(unit_raw):
-                    obj = Unit(prop_name, 'House')
-                    self.dic[prop_name].update({'House': obj})
+        dbg(f"[DBG] create_dic created={created_count} duplicates_overwritten={duplicate_count}")
+        dbg(f"[DBG] create_dic nonzero props: {summarize_nonzero_property_counts(self.dic)}")
 
     def in_dic(self, complex, unit):
         try:
@@ -365,7 +385,16 @@ class vacancy_csv(object):
 
     def gsheets(self):
         sheet = self.ss[0]
+        matched_rows = 0
+        unmatched_rows = 0
+
         for i in sheet:
+            if len(i) < 9:
+                continue
+
+            if len(i[0]) > 0 and str(i[0]).strip() == 'Timestamp':
+                continue
+
             if self.is_SFH(i[1]):
                 complex = i[1].replace(" House", "")
                 unit = 'House'
@@ -373,7 +402,6 @@ class vacancy_csv(object):
                 complex = i[1]
                 unit = i[2]
 
-            # Normalize special unit text coming from Google Forms/Sheets
             norm = normalize_special_unit(unit, complex)
             if norm:
                 unit = norm
@@ -385,70 +413,75 @@ class vacancy_csv(object):
                 nextsteps = i[6]
                 actualrent = i[7]
                 person = i[8]
+
                 self.dic[complex][unit].status = status
                 self.dic[complex][unit].askingrent = askingrent
                 self.dic[complex][unit].unittype = bedbath
                 self.dic[complex][unit].actualrent = actualrent
                 self.dic[complex][unit].notes = nextsteps
                 self.dic[complex][unit].person = person
+                matched_rows += 1
+            else:
+                if len(i[0]) > 0:
+                    unmatched_rows += 1
+
+        dbg(f"[DBG] gsheets matched={matched_rows} unmatched={unmatched_rows}")
         return self.dic
 
     def compare(self):
-        old_file = open('old.csv', newline='')
-        reader1 = csv.reader(old_file)
-        data1 = list(reader1)
+        with open('old.csv', newline='', encoding='utf-8-sig') as old_file:
+            reader1 = csv.reader(old_file)
+            data1 = list(reader1)
 
         self.ss.downloadAsCSV()
-        new_file = open('new.csv', newline='')
-        reader2 = csv.reader(new_file)
-        data2 = list(reader2)
+
+        with open('new.csv', newline='', encoding='utf-8-sig') as new_file:
+            reader2 = csv.reader(new_file)
+            data2 = list(reader2)
+
         self.newdata = data2
 
-        oldstamps = []
-        newstamps = []
-        for i in data1:
-            oldstamps.append(i[0])
-        for i in data2:
-            newstamps.append(i[0])
+        oldstamps = [(i[0] if len(i) > 0 else "") for i in data1]
+        newstamps = [(i[0] if len(i) > 0 else "") for i in data2]
+
+        dbg(f"[DBG] compare old rows={len(oldstamps)} new rows={len(newstamps)}")
+        dbg(f"[DBG] compare last old stamp={oldstamps[-1] if oldstamps else '(none)'}")
+        dbg(f"[DBG] compare last new stamp={newstamps[-1] if newstamps else '(none)'}")
 
         if oldstamps == newstamps:
-            print('nothing to update here!')
             self.tosendornot = False
             self.updated_lines = []
+            dbg("[DBG] compare: no form updates")
             return False
 
-        if not oldstamps == newstamps:
-            self.updated_lines = []
-            self.tosendornot = True
+        self.updated_lines = []
+        self.tosendornot = True
 
-            # find the index of last matching timestamp,
-            ind = -1
-            for i in oldstamps:
-                try:
-                    if len(i[0]) > 0:
-                        ind = oldstamps.index(i)
-                except:
-                    x = 'do nothing'
-            self.updated_lines.extend(data2[ind + 1:])
-            self.update_old()
-            self.update_announcement()
-            return True
+        ind = -1
+        for stamp in oldstamps:
+            try:
+                if len(stamp) > 0:
+                    ind = oldstamps.index(stamp)
+            except:
+                pass
+
+        self.updated_lines.extend(data2[ind + 1:])
+        self.update_old()
+        self.update_announcement()
+        dbg(f"[DBG] compare: updates found={len(self.updated_lines)}")
+        return True
 
     def update_old(self):
-        outputFile = open('old.csv', 'w', newline='')
-        outputWriter = csv.writer(outputFile)
-        for i in self.newdata:
-            outputWriter.writerow(i)
-        return None
+        with open('old.csv', 'w', newline='', encoding='utf-8-sig') as outputFile:
+            outputWriter = csv.writer(outputFile)
+            for i in self.newdata:
+                outputWriter.writerow(i)
 
     def update_announcement(self):
-        # ============================
-        # Existing behavior (DO NOT BREAK)
-        # ============================
-        s = """"""
+        s = ""
         personlist = []
         for i in self.updated_lines:
-            person = i[8]
+            person = i[8] if len(i) > 8 else ""
             if person not in personlist:
                 personlist.append(person)
 
@@ -468,21 +501,16 @@ class vacancy_csv(object):
                 space = "House"
             else:
                 prop = self.abbr_complex(i[1])
-                # Normalize unit here as well for consistency
                 norm_unit = normalize_special_unit(i[2], i[1]) or i[2]
                 space = str(norm_unit).strip()
+
             if count < len(self.updated_lines):
                 s += prop + " " + space + ", "
             else:
                 s += prop + " " + space
 
-        # This is the "website mapped" message. DO NOT change downstream behavior.
         self.printedmsg = s + '\n' + self.printedmsg
 
-        # ============================
-        # SMS #2 prep (build update lines ONLY here)
-        # We'll insert "Current Rent Ready Units" later after sorted_dic is available.
-        # ============================
         lines = []
         seen = set()
 
@@ -504,29 +532,44 @@ class vacancy_csv(object):
                 seen.add(line)
                 lines.append(line)
 
-        self._sms2_update_lines = lines  # store for later composition
-        return None
+        self._sms2_update_lines = lines
 
-    def sorted_dic(self):
+    def sorted_dic_func(self):
         self.sorted_dic = {}
         for i in self.statuslist:
-            self.sorted_dic.update({i: {}})
+            self.sorted_dic[i] = {}
+
         for prop in self.dic:
             for unit in self.dic[prop]:
                 a = self.dic[prop][unit]
                 try:
-                    self.sorted_dic[a.status].update({a.complex + ' ' + a.unit: a})
+                    self.sorted_dic[a.status][a.complex + ' ' + a.unit] = a
                 except:
-                    print("the object's (that you're looping thru) status does not exist")
+                    pass
+
+        dbg(
+            "[DBG] status counts | "
+            + " | ".join([
+                f"RR={len(self.sorted_dic['Rent Ready'])}",
+                f"UT={len(self.sorted_dic['Recently Vacated - Needs Work'])}",
+                f"R={len(self.sorted_dic['Rented'])}",
+                f"NC={len(self.sorted_dic['New Coach/Construction'])}",
+                f"EL={len(self.sorted_dic['Empty Lot'])}",
+                f"NS={len(self.sorted_dic['No Status (Please Update)'])}"
+            ])
+        )
         return self.sorted_dic
 
     def abbr_complex(self, complex):
-        d = {'Holiday': 'Hol', 'Mt Vista': 'MtV', 'Westwind': 'West', 'Crestview': 'Crest',
-             'Avalon': 'Av', 'Aladdin': 'Al', 'Bonanza': 'Bon',
-             'Hitching Post': 'HP', 'SFH': 'SFH', 'Patrician': 'Pat', 'Wishing Well': 'Wish',
-             'Chestnut': 'Chestnut', 'Elm': 'Elm', '12398 4th': '12398 4th', 'Reedywoods': 'Reedywd', 'North Grove': 'Grove',
-             'Massachusetts': 'Massachu', 'Michigan': 'Mich', '906 N 4th': '906 N 4th', 'Indian School': 'Indian School', 'Cottonwood': 'Cottonwd'
-             }
+        d = {
+            'Holiday': 'Hol', 'Mt Vista': 'MtV', 'Westwind': 'West', 'Crestview': 'Crest',
+            'Avalon': 'Av', 'Aladdin': 'Al', 'Bonanza': 'Bon',
+            'Hitching Post': 'HP', 'SFH': 'SFH', 'Patrician': 'Pat', 'Wishing Well': 'Wish',
+            'Chestnut': 'Chestnut', 'Elm': 'Elm', '12398 4th': '12398 4th',
+            'Reedywoods': 'Reedywd', 'North Grove': 'Grove',
+            'Massachusetts': 'Massachu', 'Michigan': 'Mich',
+            '906 N 4th': '906 N 4th', 'Indian School': 'Indian School', 'Cottonwood': 'Cottonwd'
+        }
         return d[complex]
 
     def abbr_type(self, unittype):
@@ -538,16 +581,7 @@ class vacancy_csv(object):
             s2 = "(" + L[0] + "/" + L[1] + ")"
         return s2
 
-    # -----------------------------
-    # NEW: SMS #2 "Current Rent Ready Units" builder
-    # (This is SMS-only. It NEVER touches self.printedmsg.)
-    # -----------------------------
     def _build_sms2_rent_ready_block(self, max_lines=40):
-        """
-        Builds a compact list of current Rent Ready units for SMS #2.
-        This uses self.sorted_dic['Rent Ready'] and is safe for the website mapping,
-        because it does NOT touch self.printedmsg at all.
-        """
         try:
             rentready = self.sorted_dic.get('Rent Ready', {})
         except Exception:
@@ -557,10 +591,6 @@ class vacancy_csv(object):
             self._sms2_rent_ready_block = "Current Rent Ready Units:\n(None)\n"
             return self._sms2_rent_ready_block
 
-        def natural_sort_key(s):
-            return [int(x) if x.isdigit() else x.lower() for x in re.split(r'(\d+)', s)]
-
-        # rentready is a dict of key -> Unit(obj). We'll sort by the dict key (which looks like "Complex Unit")
         items = sorted(rentready.items(), key=lambda kv: natural_sort_key(kv[0]))
 
         lines = ["Current Rent Ready Units:"]
@@ -574,67 +604,70 @@ class vacancy_csv(object):
 
             complex_abbr = self.abbr_complex(obj.complex)
             unit = obj.unit
-            # Keep it readable; include bed/bath + asking rent (same style as your Rent Ready section)
             try:
                 type_part = self.abbr_type(obj.unittype)
             except Exception:
                 type_part = "(?/?)"
+
             asking = str(obj.askingrent).strip()
             if asking == "" or asking.lower() == "empty":
                 asking = "?"
+
             lines.append(f"- {complex_abbr} {unit} {type_part} - ${asking}")
 
         self._sms2_rent_ready_block = "\n".join(lines) + "\n"
         return self._sms2_rent_ready_block
 
     def _finalize_sms2(self):
-        """
-        Compose self.printedmsg_number2 as:
-
-          (1) "Victor updated ..."
-          (1.5) Current Rent Ready Units: ...
-          (2) website link footer
-
-        IMPORTANT: This does NOT change self.printedmsg (the website-mapped SMS #1).
-        """
         parts = []
 
-        # (1) update lines (only if we actually have updates)
         if self._sms2_update_lines:
             parts.append("\n".join(self._sms2_update_lines))
 
-        # (1.5) rent ready block (always include if we have updates; optional otherwise)
-        # If you want it ALWAYS (even with no updates), remove the if wrapper.
         if self._sms2_update_lines and self._sms2_rent_ready_block:
             parts.append(self._sms2_rent_ready_block.rstrip())
 
-        # (2) footer (only if we have updates; keeps behavior similar to your current SMS #2)
         if self._sms2_update_lines:
             parts.append(self._sms2_footer)
 
         self.printedmsg_number2 = "\n\n".join([p for p in parts if str(p).strip()]) if parts else ""
         return self.printedmsg_number2
 
-    # Oct 5th firestore code baby!
     def firestore(self):
         import firebase_admin
         from firebase_admin import credentials
         from firebase_admin import firestore as _firestore
-        cred = credentials.Certificate(r'C:\Users\19097\PycharmProjects\VacancyTextScript\serviceaccountkey.json')
+
+        cred_path = r'C:\Users\19097\PycharmProjects\VacancyTextScript\serviceaccountkey.json'
+        cred = credentials.Certificate(cred_path)
+
         try:
-            firebase_admin.get_app()
+            app = firebase_admin.get_app()
         except ValueError:
-            firebase_admin.initialize_app(cred)
+            app = firebase_admin.initialize_app(cred)
+
         db = _firestore.client()
 
-        # first: delete all existing documents (Hierarchy: collection ('vacancy') --> document ('rent_ready') --> fields )
-        L = ['just_rented', 'no_status', 'recently_updated', 'rent_ready', 'under_construction', 'empty_lots', 'unit_turns']
+        dbg(f"[DBG] firestore using cred file: {cred_path}")
+        try:
+            dbg(f"[DBG] firebase project id: {app.project_id}")
+        except Exception as e:
+            dbg(f"[DBG] could not read firebase project id: {e}")
+
+        L = ['just_rented', 'no_status', 'recently_updated', 'rent_ready', 'under_construction', 'empty_lots',
+             'unit_turns']
+
         for i in L:
             db.collection('Vacancy').document(i).delete()
-        # second: create new documents
         for i in L:
             db.collection('Vacancy').document(i).set({'type': i})
-        # third: fill up documents with txt msg data
+
+        rr_count = 0
+        ut_count = 0
+        jr_count = 0
+        uc_count = 0
+        el_count = 0
+        ns_count = 0
 
         # Rent Ready
         for i in self.sorted_dic['Rent Ready']:
@@ -646,8 +679,8 @@ class vacancy_csv(object):
             raw_key = self.abbr_complex(complex) + "_" + unit
             key = fs_field_path(raw_key)
             value = self.abbr_type(unittype) + "-$" + askingrent
-
             db.collection('Vacancy').document('rent_ready').update({key: value})
+            rr_count += 1
 
         # Unit Turns
         for i in self.sorted_dic['Recently Vacated - Needs Work']:
@@ -659,6 +692,7 @@ class vacancy_csv(object):
             key = fs_field_path(raw_key)
             value = self.abbr_type(unittype)
             db.collection('Vacancy').document('unit_turns').update({key: value})
+            ut_count += 1
 
         # Just Rented
         for i in self.sorted_dic['Rented']:
@@ -670,8 +704,8 @@ class vacancy_csv(object):
             raw_key = self.abbr_complex(complex) + "_" + unit
             key = fs_field_path(raw_key)
             value = self.abbr_type(unittype) + "-$" + actualrent
-
             db.collection('Vacancy').document('just_rented').update({key: value})
+            jr_count += 1
 
         # Under Construction
         for i in self.sorted_dic['New Coach/Construction']:
@@ -680,8 +714,11 @@ class vacancy_csv(object):
 
             raw_key = complex + "_" + unit
             key = fs_field_path(raw_key)
-            value = ""
+            value = self.sorted_dic['New Coach/Construction'][i].notes if str(
+                self.sorted_dic['New Coach/Construction'][i].notes
+            ).strip() not in {'', 'Empty'} else ""
             db.collection('Vacancy').document('under_construction').update({key: value})
+            uc_count += 1
 
         # Empty Lots
         for i in self.sorted_dic['Empty Lot']:
@@ -692,6 +729,7 @@ class vacancy_csv(object):
             key = fs_field_path(raw_key)
             value = ""
             db.collection('Vacancy').document('empty_lots').update({key: value})
+            el_count += 1
 
         # No Status
         for i in self.sorted_dic['No Status (Please Update)']:
@@ -702,15 +740,45 @@ class vacancy_csv(object):
             key = fs_field_path(raw_key)
             value = ""
             db.collection('Vacancy').document('no_status').update({key: value})
+            ns_count += 1
+
+        dbg(f"[DBG] firestore writes RR={rr_count} UT={ut_count} R={jr_count} NC={uc_count} EL={el_count} NS={ns_count}")
+
+        # READ-BACK VERIFICATION
+        try:
+            rr_doc = db.collection('Vacancy').document('rent_ready').get()
+            ut_doc = db.collection('Vacancy').document('unit_turns').get()
+            jr_doc = db.collection('Vacancy').document('just_rented').get()
+            uc_doc = db.collection('Vacancy').document('under_construction').get()
+            el_doc = db.collection('Vacancy').document('empty_lots').get()
+            ns_doc = db.collection('Vacancy').document('no_status').get()
+
+            rr_data = rr_doc.to_dict() or {}
+            ut_data = ut_doc.to_dict() or {}
+            jr_data = jr_doc.to_dict() or {}
+            uc_data = uc_doc.to_dict() or {}
+            el_data = el_doc.to_dict() or {}
+            ns_data = ns_doc.to_dict() or {}
+
+            dbg(
+                "[DBG] firestore readback | "
+                f"RR={max(0, len(rr_data) - 1)} "
+                f"UT={max(0, len(ut_data) - 1)} "
+                f"R={max(0, len(jr_data) - 1)} "
+                f"NC={max(0, len(uc_data) - 1)} "
+                f"EL={max(0, len(el_data) - 1)} "
+                f"NS={max(0, len(ns_data) - 1)}"
+            )
+
+            dbg(f"[DBG] firestore sample RR keys: {list(rr_data.keys())[:8]}")
+        except Exception as e:
+            dbg(f"[DBG] firestore readback failed: {e}")
 
     def txtmsg(self):
-        string = """"""
+        string = ""
         string += "\n"
         string += "Rent Ready:\n"
         string += "-  -  -  -  -  -\n"
-
-        def natural_sort_key(s):
-            return [int(x) if x.isdigit() else x.lower() for x in re.split(r'(\d+)', s)]
 
         def alphabetize_nested_dict(nested_dict):
             for key, value in nested_dict.items():
@@ -738,15 +806,11 @@ class vacancy_csv(object):
         for i in unitturns:
             complex = unitturns[i].complex
             unit = unitturns[i].unit
-            nextsteps = unitturns[i].notes
-            if nextsteps == "":
-                nextsteps = "What's next?"
             string += self.abbr_complex(complex) + " " + unit + ", "
 
         string += "\n"
         string += "\nRented!:\n"
         string += "-  -  -  -  -  -\n"
-
         for i in rented:
             complex = rented[i].complex
             unit = rented[i].unit
@@ -761,42 +825,28 @@ class vacancy_csv(object):
         for i in newcoach:
             complex = self.abbr_complex(newcoach[i].complex)
             unit = newcoach[i].unit
-            combined = complex + " " + unit
-            L.append(combined)
-        liststring = ''
-        for x in L:
-            liststring += x + ", "
-        string += liststring + "\n"
+            L.append(complex + " " + unit)
+        string += ", ".join(L) + "\n"
 
         string += "\n"
-
         string += "Empty Lots:\n"
         string += "-  -  -  -  -  -\n"
         L = []
         for i in emptylot:
             complex = self.abbr_complex(emptylot[i].complex)
             unit = emptylot[i].unit
-            combined = complex + " " + unit
-            L.append(combined)
-        liststring = ''
-        for x in L:
-            liststring += x + ", "
-        string += liststring + "\n"
+            L.append(complex + " " + unit)
+        string += ", ".join(L) + "\n"
 
         string += "\n"
-
         string += "No Status:\n"
         string += "-  -  -  -  -  -\n"
         L2 = []
         for i in nostatus:
             complex = self.abbr_complex(nostatus[i].complex)
             unit = nostatus[i].unit
-            combined = complex + " " + unit
-            L2.append(combined)
-        liststring2 = ''
-        for x in L2:
-            liststring2 += x + ", "
-        string += liststring2 + "\n"
+            L2.append(complex + " " + unit)
+        string += ", ".join(L2) + "\n"
 
         string += "\n"
         string += "https://forms.gle/ZJminE5umWn9E8YM6"
@@ -807,7 +857,7 @@ class vacancy_csv(object):
         else:
             self.printedmsg = self.printedmsg + string
 
-        return None
+        dbg(f"[DBG] SMS lengths | sms1={len(self.printedmsg)} sms2={len(self.printedmsg_number2)}")
 
     def skimthefat(self):
         path = r'C:\Users\19097\PycharmProjects\VacancyTextScript\*.csv'
@@ -828,9 +878,7 @@ class vacancy_csv(object):
                 if todayobj > mightbeold:
                     count += 1
                     os.remove(fname)
-                    print('removed ' + fname)
-        if count == 0:
-            print('No milk to skim!')
+        dbg(f"[DBG] skimthefat removed={count}")
 
 
 class Unit(object):
@@ -846,22 +894,20 @@ class Unit(object):
 
 
 def numberstomessage():
-    d = {'Victor': '+19098163161', 'Jian': '+19092101491', 'Karla': '+19097677208', 'Bathshua': '+19097140840',
-         'Richard': '+19516639308', 'Jeff': '+19092228209', 'Hector': '+19094897033',
-         'Rick': '+19092541913', 'Debbie': '+17605141103', 'Megan': '+13237192726', 'Alexandra': '+19513509693',
-         'Brian': '+19092678862'}
-    # d = {'Victor': '+19098163161'}
-    L = []
-    for i in d:
-        L.append(d[i])
-    return L
+    d = {
+        'Victor': '+19098163161', 'Jian': '+19092101491', 'Karla': '+19097677208',
+        'Bathshua': '+19097140840', 'Richard': '+19516639308', 'Jeff': '+19092228209',
+        'Hector': '+19094897033', 'Rick': '+19092541913', 'Debbie': '+17605141103',
+        'Megan': '+13237192726', 'Alexandra': '+19513509693', 'Brian': '+19092678862'
+    }
+    if DEBUG_SEND_TO_VICTOR_ONLY:
+        return [d['Victor']]
+    return list(d.values())
 
 
 def call_twilio():
     def are_there_new_vacs():
-        if Add_To_Textmsg_Body() != "" and is_it_time_baby():
-            return True
-        return False
+        return Add_To_Textmsg_Body() != "" and is_it_time_baby()
 
     L = numberstomessage()
     account_sid = readtxtfile()['sid']
@@ -869,39 +915,41 @@ def call_twilio():
     client = Client(account_sid, auth_token)
     o1 = vacancy_csv()
 
-    # IMPORTANT: keep this as the "rawtxtmsg" that your other script/site relies on
     text = o1.printedmsg
-
-    # NEW: second message (SMS-only; do NOT let the site read/map this)
     text2 = o1.printedmsg_number2
 
-    print(text)
-    print("----- SMS #2 -----")
-    print(text2)
+    dbg("[DBG] ----- SMS1 START -----")
+    dbg(text)
+    dbg("[DBG] ----- SMS1 END -----")
 
-    numbers_to_message = L
-    print(L)
+    dbg("[DBG] ----- SMS2 START -----")
+    dbg(text2 if text2.strip() else "(empty)")
+    dbg("[DBG] ----- SMS2 END -----")
 
-    if o1.tosendornot or are_there_new_vacs():
-        for number in numbers_to_message:
-            # SMS #1 (unchanged behavior)
+    current_new_vacs = are_there_new_vacs()
+    should_send = FORCE_SEND_DEBUG or o1.tosendornot or current_new_vacs
+
+    dbg(f"[DBG] send? force={FORCE_SEND_DEBUG} tosendornot={o1.tosendornot} new_vacs_now={current_new_vacs}")
+    dbg(f"[DBG] final should_send={should_send}")
+    dbg(f"[DBG] recipients={L}")
+
+    if should_send:
+        for number in L:
             client.messages.create(
                 body=text,
                 from_=readtxtfile()['from'],
                 to=number
             )
-
-            # SMS #2 (new behavior) - only if we actually built it
             if text2.strip():
                 client.messages.create(
                     body=text2,
                     from_=readtxtfile()['from'],
                     to=number
                 )
-
-        print('txt msg(s) sent:')
+        dbg("[DBG] texts sent")
     else:
-        print('txt msg should not have sent: there are no updates so no need for a txt msg')
+        dbg("[DBG] texts not sent")
+
     return 'nothing'
 
 
@@ -919,12 +967,5 @@ def readtxtfile():
     d = {'sid': sid, 'token': token, 'from': phone_from, 'to': phone_to}
     return d
 
-
-# o1 = vacancy_csv()
-# print(o1.printedmsg)
-# print(o1.beginning)
-# print(o1.dic)
-# print(o1.sorted_dic)
-# print(o1.printedmsg)
 
 call_twilio()
